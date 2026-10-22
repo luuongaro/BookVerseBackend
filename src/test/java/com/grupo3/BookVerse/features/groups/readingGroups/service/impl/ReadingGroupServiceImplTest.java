@@ -7,6 +7,7 @@ import com.grupo3.BookVerse.features.books.repository.BookRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.dto.ReadingGroupRequestDto;
 import com.grupo3.BookVerse.features.groups.readingGroups.dto.ReadingGroupResponseDto;
+import com.grupo3.BookVerse.features.groups.readingGroups.dto.UpdateReadingGroupRequestDto;
 import com.grupo3.BookVerse.features.groups.readingGroups.mappers.ReadingGroupMapper;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
@@ -331,12 +332,9 @@ class ReadingGroupServiceImplTest {
     @Test
     void updateGroup_shouldReturnUpdatedDto() {
 
-        ReadingGroupRequestDto request =
-                new ReadingGroupRequestDto(
-                        bookId,
-                        null,
-                        "Updated Group",
-                        false
+        UpdateReadingGroupRequestDto request =
+                new UpdateReadingGroupRequestDto(
+                        "Updated Group"
                 );
 
         BookEntity book = new BookEntity();
