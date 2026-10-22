@@ -22,4 +22,15 @@ public interface GroupGoalsService {
 
     void cancelGoal(UUID goalId);
 
+    // Additional CRUD methods
+    GroupGoalsResponseDto save(GroupGoalsRequestDto requestDto);
+
+    GroupGoalsResponseDto findById(UUID goalId);
+
+    void delete(UUID goalId);
+
+    List<GroupGoalsResponseDto> findAll();
+
+    GroupGoalsResponseDto findByGroupId(UUID groupId);
+
 }

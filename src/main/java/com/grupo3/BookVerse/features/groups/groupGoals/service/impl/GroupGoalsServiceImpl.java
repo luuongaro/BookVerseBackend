@@ -284,4 +284,35 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
 
         return user;
     }
+
+    @Override
+    @Transactional
+    public GroupGoalsResponseDto save(GroupGoalsRequestDto requestDto) {
+        return createGoal(requestDto.groupId(), requestDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public GroupGoalsResponseDto findById(UUID goalId) {
+        return getGoalByIdExternal(goalId);
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID goalId) {
+        cancelGoal(goalId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<GroupGoalsResponseDto> findAll() {
+        List<GroupGoalsEntity> goals = groupGoalsRepository.findAll();
+        return groupGoalsMapper.toResponseDtoList(goals);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public GroupGoalsResponseDto findByGroupId(UUID groupId) {
+        return getActiveGoalByGroupId(groupId);
+    }
 }

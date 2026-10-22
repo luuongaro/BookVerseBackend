@@ -11,7 +11,9 @@ public record ReadingGroupRequestDto(
         UUID storyId,
 
         @NotBlank(message = "name cannot be blank")
-        String name
+        String name,
+
+        Boolean isActive
 
 ) {
 }
