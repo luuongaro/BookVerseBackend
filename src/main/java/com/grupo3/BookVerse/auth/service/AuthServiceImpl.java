@@ -1,10 +1,10 @@
 package com.grupo3.BookVerse.auth.service;
+
 import com.grupo3.BookVerse.auth.dtos.AuthRequest;
 import com.grupo3.BookVerse.auth.dtos.AuthResponse;
 import com.grupo3.BookVerse.auth.dtos.RegisterRequest;
 import com.grupo3.BookVerse.auth.jwt.JwtService;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
-import com.grupo3.BookVerse.infrastructure.EmailService;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionEntity;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionType;
 import com.grupo3.BookVerse.features.subscriptions.repository.SubscriptionRepository;
@@ -13,6 +13,7 @@ import com.grupo3.BookVerse.features.users.dto.UserRequestDto;
 import com.grupo3.BookVerse.features.users.dto.UserResponseDto;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import com.grupo3.BookVerse.features.users.service.UserService;
+import com.grupo3.BookVerse.infrastructure.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -34,7 +35,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(readOnly = true)
     public AuthResponse authenticate(AuthRequest request) {
-
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.email(),
@@ -42,25 +42,21 @@ public class AuthServiceImpl implements AuthService {
                 )
         );
 
-        UserEntity user = userRepository.findByEmailWithRoles(
-                        request.email()
-                )
+        UserEntity user = userRepository.findByEmailWithRoles(request.email())
                 .orElseThrow(() ->
                         new UsernameNotFoundException(
-                                "User not found with email: "
-                                        + request.email()
+                                "User not found with email: " + request.email()
                         )
                 );
 
         String token = jwtService.generateToken(user);
 
-        return new AuthResponse(token);
+        return new AuthResponse(token, user.getIdExternal());
     }
 
     @Override
     @Transactional
     public UserResponseDto register(RegisterRequest request) {
-
         SubscriptionEntity freeSubscription =
                 subscriptionRepository.findByType(SubscriptionType.FREE)
                         .orElseThrow(() ->
@@ -76,7 +72,8 @@ public class AuthServiceImpl implements AuthService {
                 freeSubscription.getIdExternal()
         );
 
-        UserResponseDto registeredUser = userService.createUser(userRequestDto);
+        UserResponseDto registeredUser =
+                userService.createUser(userRequestDto);
 
         emailService.sendWelcomeEmail(
                 registeredUser.email(),
