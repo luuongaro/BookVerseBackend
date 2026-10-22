@@ -1,4 +1,9 @@
 package com.grupo3.BookVerse.auth.dtos;
 
-public record AuthResponse(String token) {
+import java.util.UUID;
+
+public record AuthResponse(
+        String token,
+        UUID userId
+) {
 }
