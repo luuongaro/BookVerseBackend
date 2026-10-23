@@ -2,6 +2,7 @@ package com.grupo3.BookVerse.features.users.service;
 
 import com.grupo3.BookVerse.features.users.dto.UserRequestDto;
 import com.grupo3.BookVerse.features.users.dto.UserResponseDto;
+import com.grupo3.BookVerse.features.users.dto.UserRolesUpdateRequestDto;
 import com.grupo3.BookVerse.features.users.dto.UserUpdateRequestDto;
 
 import java.util.List;
@@ -16,6 +17,8 @@ public interface UserService {
     UserResponseDto getUserByIdExternal(UUID idExternal);
 
     UserResponseDto updateUser(UUID idExternal, UserUpdateRequestDto dto);
+
+    UserResponseDto updateUserRoles(UUID idExternal, UserRolesUpdateRequestDto dto);
 
     void deleteUser(UUID idExternal);
 }

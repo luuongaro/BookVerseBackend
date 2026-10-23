@@ -1,7 +1,8 @@
 package com.grupo3.BookVerse.features.users.controller;
 
-import com.grupo3.BookVerse.features.users.dto.UserUpdateRequestDto;
 import com.grupo3.BookVerse.features.users.dto.UserResponseDto;
+import com.grupo3.BookVerse.features.users.dto.UserRolesUpdateRequestDto;
+import com.grupo3.BookVerse.features.users.dto.UserUpdateRequestDto;
 import com.grupo3.BookVerse.features.users.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -95,6 +96,32 @@ public class UserController {
             @Valid @RequestBody UserUpdateRequestDto dto
     ) {
         return ResponseEntity.ok(userService.updateUser(idExternal, dto));
+    }
+
+    @PutMapping("/{idExternal}/roles")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "Replace a user's roles",
+            description = "Replaces all roles assigned to the selected user.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User roles updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid role selection", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content),
+            @ApiResponse(responseCode = "404", description = "User or role not found", content = @Content)
+    })
+    public ResponseEntity<UserResponseDto> updateUserRoles(
+            @Parameter(
+                    description = "External UUID of the user whose roles will be updated",
+                    required = true,
+                    example = "550e8400-e29b-41d4-a716-446655440000"
+            )
+            @PathVariable UUID idExternal,
+            @Valid @RequestBody UserRolesUpdateRequestDto dto
+    ) {
+        return ResponseEntity.ok(userService.updateUserRoles(idExternal, dto));
     }
 
     @DeleteMapping("/{idExternal}")
