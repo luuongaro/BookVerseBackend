@@ -37,6 +37,10 @@ public class GroupCommentEntity {
     @Column(name = "status", nullable = false)
     private GroupCommentStatus status;
 
+    @Builder.Default
+    @Column(name = "is_hidden", nullable = false)
+    private Boolean isHidden = false;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
@@ -52,8 +56,13 @@ public class GroupCommentEntity {
         if (idExternal == null) {
             idExternal = UUID.randomUUID();
         }
+
         if (status == null) {
             status = GroupCommentStatus.ACTIVE;
+        }
+
+        if (isHidden == null) {
+            isHidden = false;
         }
     }
 }
