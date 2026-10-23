@@ -41,7 +41,9 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional(readOnly = true)
     public List<ReviewResponseDto> getAllReviews() {
         List<ReviewEntity> reviews =
-                reviewRepository.findAllByDeletedFalseOrderByCreatedAtDesc();
+                reviewRepository.findAllByDeletedFalseAndTakedownStatusOrderByCreatedAtDesc(
+                        ReviewTakedownStatus.ACTIVE
+                );
 
         return reviewMapper.toResponseListDto(reviews);
     }
@@ -59,7 +61,10 @@ public class ReviewServiceImpl implements ReviewService {
         BookEntity book = findActiveBookByIdExternal(bookId);
 
         List<ReviewEntity> reviews =
-                reviewRepository.findByBookIdAndDeletedFalseOrderByCreatedAtDesc(book.getId());
+                reviewRepository.findByBookIdAndDeletedFalseAndTakedownStatusOrderByCreatedAtDesc(
+                        book.getId(),
+                        ReviewTakedownStatus.ACTIVE
+                );
 
         return reviewMapper.toResponseListDto(reviews);
     }
@@ -70,7 +75,10 @@ public class ReviewServiceImpl implements ReviewService {
         StoryEntity story = findActiveStoryByIdExternal(storyId);
 
         List<ReviewEntity> reviews =
-                reviewRepository.findByStoryIdAndDeletedFalseOrderByCreatedAtDesc(story.getId());
+                reviewRepository.findByStoryIdAndDeletedFalseAndTakedownStatusOrderByCreatedAtDesc(
+                        story.getId(),
+                        ReviewTakedownStatus.ACTIVE
+                );
 
         return reviewMapper.toResponseListDto(reviews);
     }
@@ -78,7 +86,6 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public ReviewResponseDto createReview(ReviewCreateRequestDto dto) {
-
         validateExactlyOneTarget(dto.bookId(), dto.storyId());
 
         UserEntity authenticatedUser = getAuthenticatedUser();
@@ -141,7 +148,10 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     private ReviewEntity findActiveReviewByIdExternal(UUID reviewId) {
-        return reviewRepository.findByIdExternalAndDeletedFalse(reviewId)
+        return reviewRepository.findByIdExternalAndDeletedFalseAndTakedownStatus(
+                        reviewId,
+                        ReviewTakedownStatus.ACTIVE
+                )
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Review not found with id: " + reviewId
@@ -194,9 +204,14 @@ public class ReviewServiceImpl implements ReviewService {
         return user;
     }
 
-    private void validateAuthenticatedUserMatchesReviewer(UserEntity authenticatedUser, UserEntity reviewer) {
+    private void validateAuthenticatedUserMatchesReviewer(
+            UserEntity authenticatedUser,
+            UserEntity reviewer
+    ) {
         if (!authenticatedUser.getId().equals(reviewer.getId())) {
-            throw new AccessDeniedException("You cannot create a review on behalf of another user");
+            throw new AccessDeniedException(
+                    "You cannot create a review on behalf of another user"
+            );
         }
     }
 
@@ -210,18 +225,23 @@ public class ReviewServiceImpl implements ReviewService {
 
     private void validateDuplicateBookReview(Long reviewerId, Long bookId) {
         if (reviewRepository.existsByReviewerIdAndBookIdAndDeletedFalse(reviewerId, bookId)) {
-            throw new DuplicateResourceException("The user has already reviewed this book");
+            throw new DuplicateResourceException(
+                    "The user has already reviewed this book"
+            );
         }
     }
 
     private void validateDuplicateStoryReview(Long reviewerId, Long storyId) {
         if (reviewRepository.existsByReviewerIdAndStoryIdAndDeletedFalse(reviewerId, storyId)) {
-            throw new DuplicateResourceException("The user has already reviewed this story");
+            throw new DuplicateResourceException(
+                    "The user has already reviewed this story"
+            );
         }
     }
 
     private void validateStoryIsNotOwnedByReviewer(StoryEntity story, UserEntity reviewer) {
-        if (story.getAuthor() != null && story.getAuthor().getId().equals(reviewer.getId())) {
+        if (story.getAuthor() != null
+                && story.getAuthor().getId().equals(reviewer.getId())) {
             throw new BadRequestException("Users cannot review their own stories");
         }
     }
@@ -237,7 +257,9 @@ public class ReviewServiceImpl implements ReviewService {
                 .anyMatch(authority -> "ROLE_MODERATOR".equals(authority.getAuthority()));
 
         if (!isOwner && !isAdmin && !isModerator) {
-            throw new AccessDeniedException("You do not have permission to manage this review");
+            throw new AccessDeniedException(
+                    "You do not have permission to manage this review"
+            );
         }
     }
 }

@@ -49,7 +49,9 @@ public class ReviewReportServiceImpl implements ReviewReportService {
     @Transactional(readOnly = true)
     public List<ReviewReportResponseDto> getPendingReports() {
         List<ReviewReportEntity> reports =
-                reviewReportRepository.findByStatusOrderByCreatedAtDesc(ReviewReportStatus.PENDING);
+                reviewReportRepository.findByStatusOrderByCreatedAtDesc(
+                        ReviewReportStatus.PENDING
+                );
 
         return reviewReportMapper.toResponseListDto(reports);
     }
@@ -64,9 +66,9 @@ public class ReviewReportServiceImpl implements ReviewReportService {
     @Override
     @Transactional
     public ReviewReportResponseDto createReport(ReviewReportCreateRequestDto dto) {
-
         UserEntity authenticatedUser = getAuthenticatedUser();
         UserEntity reporter = findUserByIdExternal(dto.reporterUserId());
+
         validateAuthenticatedUserMatchesReporter(authenticatedUser, reporter);
 
         ReviewEntity review = findActiveReviewByIdExternal(dto.reviewId());
@@ -86,9 +88,14 @@ public class ReviewReportServiceImpl implements ReviewReportService {
 
     @Override
     @Transactional
-    public ReviewReportResponseDto approveReport(UUID reportId, ReviewReportModerationRequestDto dto) {
+    public ReviewReportResponseDto approveReport(
+            UUID reportId,
+            ReviewReportModerationRequestDto dto
+    ) {
         ReviewReportEntity report = findPendingReportByIdExternal(reportId);
+        UserEntity moderator = getAuthenticatedUser();
 
+        report.setModeratorUser(moderator);
         report.setStatus(ReviewReportStatus.APPROVED);
         report.setResolutionComment(dto.resolutionComment());
         report.setResolvedAt(LocalDateTime.now());
@@ -108,9 +115,14 @@ public class ReviewReportServiceImpl implements ReviewReportService {
 
     @Override
     @Transactional
-    public ReviewReportResponseDto rejectReport(UUID reportId, ReviewReportModerationRequestDto dto) {
+    public ReviewReportResponseDto rejectReport(
+            UUID reportId,
+            ReviewReportModerationRequestDto dto
+    ) {
         ReviewReportEntity report = findPendingReportByIdExternal(reportId);
+        UserEntity moderator = getAuthenticatedUser();
 
+        report.setModeratorUser(moderator);
         report.setStatus(ReviewReportStatus.REJECTED);
         report.setResolutionComment(dto.resolutionComment());
         report.setResolvedAt(LocalDateTime.now());
@@ -132,7 +144,9 @@ public class ReviewReportServiceImpl implements ReviewReportService {
         ReviewReportEntity report = findReportByIdExternal(reportId);
 
         if (report.getStatus() != ReviewReportStatus.PENDING) {
-            throw new BadRequestException("Only pending reports can be moderated");
+            throw new BadRequestException(
+                    "Only pending reports can be moderated"
+            );
         }
 
         return report;
@@ -157,39 +171,60 @@ public class ReviewReportServiceImpl implements ReviewReportService {
     }
 
     private UserEntity getAuthenticatedUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication == null || !(authentication.getPrincipal() instanceof UserEntity user)) {
+        if (authentication == null
+                || !(authentication.getPrincipal() instanceof UserEntity user)) {
             throw new AccessDeniedException("Authenticated user not found");
         }
 
         return user;
     }
 
-    private void validateAuthenticatedUserMatchesReporter(UserEntity authenticatedUser, UserEntity reporter) {
+    private void validateAuthenticatedUserMatchesReporter(
+            UserEntity authenticatedUser,
+            UserEntity reporter
+    ) {
         if (!authenticatedUser.getId().equals(reporter.getId())) {
-            throw new AccessDeniedException("You cannot create a report on behalf of another user");
+            throw new AccessDeniedException(
+                    "You cannot create a report on behalf of another user"
+            );
         }
     }
 
     private void validateReviewCanBeReported(ReviewEntity review) {
         if (review.getTakedownStatus() == ReviewTakedownStatus.TAKEN_DOWN) {
-            throw new BadRequestException("A taken down review cannot be reported again");
+            throw new BadRequestException(
+                    "A taken down review cannot be reported again"
+            );
         }
     }
 
-    private void validateReporterIsNotReviewOwner(ReviewEntity review, UserEntity reporter) {
-        if (review.getReviewer() != null && review.getReviewer().getId().equals(reporter.getId())) {
-            throw new BadRequestException("Users cannot report their own reviews");
+    private void validateReporterIsNotReviewOwner(
+            ReviewEntity review,
+            UserEntity reporter
+    ) {
+        if (review.getReviewer() != null
+                && review.getReviewer().getId().equals(reporter.getId())) {
+            throw new BadRequestException(
+                    "Users cannot report their own reviews"
+            );
         }
     }
 
-    private void validateNoDuplicatePendingReport(Long reviewId, Long reporterUserId) {
-        if (reviewReportRepository.existsByReviewIdAndReporterUserIdAndStatus(
-                reviewId,
-                reporterUserId,
-                ReviewReportStatus.PENDING
-        )) {
+    private void validateNoDuplicatePendingReport(
+            Long reviewId,
+            Long reporterUserId
+    ) {
+        boolean alreadyReported =
+                reviewReportRepository.existsByReviewIdAndReporterUserIdAndStatus(
+                        reviewId,
+                        reporterUserId,
+                        ReviewReportStatus.PENDING
+                );
+
+        if (alreadyReported) {
             throw new DuplicateResourceException(
                     "There is already a pending report for this review by the same user"
             );

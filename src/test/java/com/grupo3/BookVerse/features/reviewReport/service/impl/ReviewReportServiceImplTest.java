@@ -16,14 +16,15 @@ import com.grupo3.BookVerse.features.reviews.domain.ReviewTakedownStatus;
 import com.grupo3.BookVerse.features.reviews.repository.ReviewRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Optional;
@@ -61,10 +62,13 @@ class ReviewReportServiceImplTest {
         userId = UUID.randomUUID();
     }
 
-    // Verify that all reports are returned successfully
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void getAllReports_shouldReturnList() {
-
         List<ReviewReportEntity> reports =
                 List.of(new ReviewReportEntity());
 
@@ -73,7 +77,6 @@ class ReviewReportServiceImplTest {
 
         when(reviewReportRepository.findAllByOrderByCreatedAtDesc())
                 .thenReturn(reports);
-
         when(reviewReportMapper.toResponseListDto(reports))
                 .thenReturn(response);
 
@@ -81,26 +84,20 @@ class ReviewReportServiceImplTest {
                 reviewReportService.getAllReports();
 
         assertEquals(response, result);
-
-        verify(reviewReportRepository)
-                .findAllByOrderByCreatedAtDesc();
+        verify(reviewReportRepository).findAllByOrderByCreatedAtDesc();
     }
 
-    // Verify that pending reports are returned successfully
     @Test
     void getPendingReports_shouldReturnList() {
-
         List<ReviewReportEntity> reports =
                 List.of(new ReviewReportEntity());
 
         List<ReviewReportResponseDto> response =
                 List.of(mock(ReviewReportResponseDto.class));
 
-        when(reviewReportRepository
-                .findByStatusOrderByCreatedAtDesc(
-                        ReviewReportStatus.PENDING))
-                .thenReturn(reports);
-
+        when(reviewReportRepository.findByStatusOrderByCreatedAtDesc(
+                ReviewReportStatus.PENDING
+        )).thenReturn(reports);
         when(reviewReportMapper.toResponseListDto(reports))
                 .thenReturn(response);
 
@@ -110,19 +107,14 @@ class ReviewReportServiceImplTest {
         assertEquals(response, result);
     }
 
-    // Verify that a report is returned by external id
     @Test
     void getReportById_shouldReturnDto() {
-
-        ReviewReportEntity entity =
-                new ReviewReportEntity();
-
+        ReviewReportEntity entity = new ReviewReportEntity();
         ReviewReportResponseDto response =
                 mock(ReviewReportResponseDto.class);
 
         when(reviewReportRepository.findByIdExternal(reportId))
                 .thenReturn(Optional.of(entity));
-
         when(reviewReportMapper.toResponseDto(entity))
                 .thenReturn(response);
 
@@ -132,10 +124,8 @@ class ReviewReportServiceImplTest {
         assertEquals(response, result);
     }
 
-    // Verify that an exception is thrown when report is not found
     @Test
     void getReportById_shouldThrowException_whenNotFound() {
-
         when(reviewReportRepository.findByIdExternal(reportId))
                 .thenReturn(Optional.empty());
 
@@ -145,24 +135,19 @@ class ReviewReportServiceImplTest {
         );
     }
 
-    // Verify that a report is created successfully
     @Test
     void createReport_shouldReturnDto() {
-
         UserEntity user = new UserEntity();
         user.setId(1L);
         user.setIdExternal(userId);
 
-        ReviewEntity review = new ReviewEntity();
-
         UserEntity reviewOwner = new UserEntity();
         reviewOwner.setId(2L);
 
-        review.setReviewer(reviewOwner);
+        ReviewEntity review = new ReviewEntity();
         review.setId(10L);
-        review.setTakedownStatus(
-                ReviewTakedownStatus.ACTIVE
-        );
+        review.setReviewer(reviewOwner);
+        review.setTakedownStatus(ReviewTakedownStatus.ACTIVE);
 
         ReviewReportCreateRequestDto dto =
                 new ReviewReportCreateRequestDto(
@@ -172,44 +157,28 @@ class ReviewReportServiceImplTest {
                         "Bad review"
                 );
 
-        ReviewReportEntity entity =
-                new ReviewReportEntity();
-
-        ReviewReportEntity saved =
-                new ReviewReportEntity();
-
+        ReviewReportEntity entity = new ReviewReportEntity();
+        ReviewReportEntity saved = new ReviewReportEntity();
         ReviewReportResponseDto response =
                 mock(ReviewReportResponseDto.class);
 
-        SecurityContextHolder.getContext()
-                .setAuthentication(
-                        new UsernamePasswordAuthenticationToken(
-                                user,
-                                null
-                        )
-                );
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user, null)
+        );
 
         when(userRepository.findByIdExternal(userId))
                 .thenReturn(Optional.of(user));
-
-        when(reviewRepository
-                .findByIdExternalAndDeletedFalse(reviewId))
+        when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
                 .thenReturn(Optional.of(review));
-
-        when(reviewReportRepository
-                .existsByReviewIdAndReporterUserIdAndStatus(
-                        10L,
-                        1L,
-                        ReviewReportStatus.PENDING
-                ))
-                .thenReturn(false);
-
+        when(reviewReportRepository.existsByReviewIdAndReporterUserIdAndStatus(
+                10L,
+                1L,
+                ReviewReportStatus.PENDING
+        )).thenReturn(false);
         when(reviewReportMapper.toEntity(dto))
                 .thenReturn(entity);
-
         when(reviewReportRepository.save(entity))
                 .thenReturn(saved);
-
         when(reviewReportMapper.toResponseDto(saved))
                 .thenReturn(response);
 
@@ -217,37 +186,22 @@ class ReviewReportServiceImplTest {
                 reviewReportService.createReport(dto);
 
         assertEquals(response, result);
-
-        verify(reviewReportRepository)
-                .save(entity);
+        verify(reviewReportRepository).save(entity);
     }
 
-    // Verify that duplicate pending reports throw exception
     @Test
     void createReport_shouldThrow_whenDuplicatePendingReport() {
-
         UserEntity user = new UserEntity();
         user.setId(1L);
         user.setIdExternal(userId);
 
-        ReviewEntity review = new ReviewEntity();
-        review.setId(10L);
-
         UserEntity reviewOwner = new UserEntity();
         reviewOwner.setId(2L);
 
+        ReviewEntity review = new ReviewEntity();
+        review.setId(10L);
         review.setReviewer(reviewOwner);
-        review.setTakedownStatus(
-                ReviewTakedownStatus.ACTIVE
-        );
-
-        SecurityContextHolder.getContext()
-                .setAuthentication(
-                        new UsernamePasswordAuthenticationToken(
-                                user,
-                                null
-                        )
-                );
+        review.setTakedownStatus(ReviewTakedownStatus.ACTIVE);
 
         ReviewReportCreateRequestDto dto =
                 new ReviewReportCreateRequestDto(
@@ -257,20 +211,19 @@ class ReviewReportServiceImplTest {
                         null
                 );
 
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user, null)
+        );
+
         when(userRepository.findByIdExternal(userId))
                 .thenReturn(Optional.of(user));
-
-        when(reviewRepository
-                .findByIdExternalAndDeletedFalse(reviewId))
+        when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
                 .thenReturn(Optional.of(review));
-
-        when(reviewReportRepository
-                .existsByReviewIdAndReporterUserIdAndStatus(
-                        10L,
-                        1L,
-                        ReviewReportStatus.PENDING
-                ))
-                .thenReturn(true);
+        when(reviewReportRepository.existsByReviewIdAndReporterUserIdAndStatus(
+                10L,
+                1L,
+                ReviewReportStatus.PENDING
+        )).thenReturn(true);
 
         assertThrows(
                 DuplicateResourceException.class,
@@ -278,27 +231,15 @@ class ReviewReportServiceImplTest {
         );
     }
 
-    // Verify that users cannot report their own reviews
     @Test
     void createReport_shouldThrow_whenUserReportsOwnReview() {
-
         UserEntity user = new UserEntity();
         user.setId(1L);
         user.setIdExternal(userId);
 
         ReviewEntity review = new ReviewEntity();
         review.setReviewer(user);
-        review.setTakedownStatus(
-                ReviewTakedownStatus.ACTIVE
-        );
-
-        SecurityContextHolder.getContext()
-                .setAuthentication(
-                        new UsernamePasswordAuthenticationToken(
-                                user,
-                                null
-                        )
-                );
+        review.setTakedownStatus(ReviewTakedownStatus.ACTIVE);
 
         ReviewReportCreateRequestDto dto =
                 new ReviewReportCreateRequestDto(
@@ -308,11 +249,13 @@ class ReviewReportServiceImplTest {
                         null
                 );
 
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user, null)
+        );
+
         when(userRepository.findByIdExternal(userId))
                 .thenReturn(Optional.of(user));
-
-        when(reviewRepository
-                .findByIdExternalAndDeletedFalse(reviewId))
+        when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
                 .thenReturn(Optional.of(review));
 
         assertThrows(
@@ -321,19 +264,14 @@ class ReviewReportServiceImplTest {
         );
     }
 
-    // Verify that approving a report updates status and review takedown
     @Test
     void approveReport_shouldApproveSuccessfully() {
+        UserEntity moderator = authenticateModerator();
 
         ReviewEntity review = new ReviewEntity();
 
-        ReviewReportEntity report =
-                new ReviewReportEntity();
-
-        report.setStatus(
-                ReviewReportStatus.PENDING
-        );
-
+        ReviewReportEntity report = new ReviewReportEntity();
+        report.setStatus(ReviewReportStatus.PENDING);
         report.setReview(review);
 
         ReviewReportModerationRequestDto dto =
@@ -346,42 +284,29 @@ class ReviewReportServiceImplTest {
 
         when(reviewReportRepository.findByIdExternal(reportId))
                 .thenReturn(Optional.of(report));
-
         when(reviewReportRepository.save(report))
                 .thenReturn(report);
-
         when(reviewReportMapper.toResponseDto(report))
                 .thenReturn(response);
 
         ReviewReportResponseDto result =
-                reviewReportService.approveReport(
-                        reportId,
-                        dto
-                );
+                reviewReportService.approveReport(reportId, dto);
 
         assertEquals(response, result);
-
-        assertEquals(
-                ReviewReportStatus.APPROVED,
-                report.getStatus()
-        );
-
+        assertEquals(ReviewReportStatus.APPROVED, report.getStatus());
         assertEquals(
                 ReviewTakedownStatus.TAKEN_DOWN,
                 review.getTakedownStatus()
         );
+        assertSame(moderator, report.getModeratorUser());
     }
 
-    // Verify that rejecting a report updates status correctly
     @Test
     void rejectReport_shouldRejectSuccessfully() {
+        UserEntity moderator = authenticateModerator();
 
-        ReviewReportEntity report =
-                new ReviewReportEntity();
-
-        report.setStatus(
-                ReviewReportStatus.PENDING
-        );
+        ReviewReportEntity report = new ReviewReportEntity();
+        report.setStatus(ReviewReportStatus.PENDING);
 
         ReviewReportModerationRequestDto dto =
                 new ReviewReportModerationRequestDto(
@@ -393,24 +318,28 @@ class ReviewReportServiceImplTest {
 
         when(reviewReportRepository.findByIdExternal(reportId))
                 .thenReturn(Optional.of(report));
-
         when(reviewReportRepository.save(report))
                 .thenReturn(report);
-
         when(reviewReportMapper.toResponseDto(report))
                 .thenReturn(response);
 
         ReviewReportResponseDto result =
-                reviewReportService.rejectReport(
-                        reportId,
-                        dto
-                );
+                reviewReportService.rejectReport(reportId, dto);
 
         assertEquals(response, result);
+        assertEquals(ReviewReportStatus.REJECTED, report.getStatus());
+        assertSame(moderator, report.getModeratorUser());
+    }
 
-        assertEquals(
-                ReviewReportStatus.REJECTED,
-                report.getStatus()
+    private UserEntity authenticateModerator() {
+        UserEntity moderator = new UserEntity();
+        moderator.setId(99L);
+        moderator.setIdExternal(UUID.randomUUID());
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(moderator, null)
         );
+
+        return moderator;
     }
 }
