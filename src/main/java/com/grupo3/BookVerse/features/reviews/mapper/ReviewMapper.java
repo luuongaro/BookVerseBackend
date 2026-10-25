@@ -31,6 +31,7 @@ public interface ReviewMapper {
 
     @Mapping(source = "idExternal", target = "reviewId")
     @Mapping(source = "reviewer.idExternal", target = "reviewerId")
+    @Mapping(source = "reviewer.profileUsername", target = "reviewerName")
     @Mapping(source = "book.idExternal", target = "bookId")
     @Mapping(source = "story.idExternal", target = "storyId")
     ReviewResponseDto toResponseDto(ReviewEntity review);
