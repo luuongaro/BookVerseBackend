@@ -9,6 +9,7 @@ public record ReviewResponseDto(
 
         UUID reviewId,
         UUID reviewerId,
+        String reviewerName,
         UUID bookId,
         UUID storyId,
         Integer rating,
