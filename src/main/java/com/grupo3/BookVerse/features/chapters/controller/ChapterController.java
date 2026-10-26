@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -55,14 +56,17 @@ public class ChapterController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
     @Operation(
             summary = "Get all chapters",
-            description = "Retrieves a paginated list of all active chapters in the system.",
+            description = "Retrieves a paginated list of all active chapters in the system. Available only to administrators and moderators.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Chapters retrieved successfully"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content)
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Access denied. Administrator or moderator role required", content = @Content
+    )
     })
     public ResponseEntity<Page<ChapterResponseDto>> getAllChapters(Pageable pageable) {
         return ResponseEntity.ok(chapterService.getAllChapters(pageable));
@@ -77,8 +81,10 @@ public class ChapterController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Chapter retrieved successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Access denied due to story subscription restrictions or unpublished chapter", content = @Content),
             @ApiResponse(responseCode = "404", description = "Chapter not found", content = @Content)
     })
+
     public ResponseEntity<ChapterResponseDto> getChapterByIdExternal(
             @Parameter(
                     description = "External UUID of the chapter",
@@ -101,6 +107,7 @@ public class ChapterController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Chapters retrieved successfully"),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Premium subscription required to access the chapters of this story", content = @Content),
             @ApiResponse(responseCode = "404", description = "Story not found", content = @Content)
     })
     public ResponseEntity<Page<ChapterResponseDto>> getChaptersByStoryId(

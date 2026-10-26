@@ -2,6 +2,8 @@ package com.grupo3.BookVerse.features.subscriptions.service.impl;
 
 import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
+import com.grupo3.BookVerse.features.stories.domain.StoryAccessType;
+import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionEntity;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionType;
 import com.grupo3.BookVerse.features.subscriptions.dto.SubscriptionResponseDto;
@@ -27,6 +29,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionMapper subscriptionMapper;
     private final UserRepository userRepository;
+    private final StoryRepository storyRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -49,7 +52,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         UserEntity authenticatedUser = getAuthenticatedUser();
 
         if (
-                authenticatedUser.getSubscription().getType()
+                authenticatedUser.getSubscription() != null
+                        && authenticatedUser.getSubscription().getType()
                         == SubscriptionType.PREMIUM
         ) {
             throw new BadRequestException(
@@ -95,7 +99,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         UserEntity authenticatedUser = getAuthenticatedUser();
 
         if (
-                authenticatedUser.getSubscription().getType()
+                authenticatedUser.getSubscription() != null
+                        && authenticatedUser.getSubscription().getType()
                         == SubscriptionType.FREE
         ) {
             throw new BadRequestException(
@@ -112,13 +117,15 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                                 )
                         );
 
-        authenticatedUser.setSubscription(
-                freeSubscription
+        storyRepository.updateAccessTypeByAuthorId(
+                authenticatedUser.getId(),
+                StoryAccessType.PREMIUM,
+                StoryAccessType.FREE
         );
 
-        userRepository.save(
-                authenticatedUser
-        );
+        authenticatedUser.setSubscription(freeSubscription);
+
+        userRepository.save(authenticatedUser);
 
         return subscriptionMapper.toResponseDto(
                 freeSubscription
@@ -130,7 +137,6 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     public SubscriptionResponseDto getUserSubscription(
             UUID userIdExternal
     ) {
-
         UserEntity user =
                 userRepository
                         .findByIdExternal(userIdExternal)
@@ -159,24 +165,39 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                         )
                 );
 
-        if (user.getSubscription().getType() == subscriptionType) {
+        if (
+                user.getSubscription() != null
+                        && user.getSubscription().getType()
+                        == subscriptionType
+        ) {
             throw new BadRequestException(
                     "User already has the selected subscription"
             );
         }
 
-        SubscriptionEntity subscription = subscriptionRepository
-                .findByType(subscriptionType)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Subscription not found"
-                        )
-                );
+        SubscriptionEntity subscription =
+                subscriptionRepository
+                        .findByType(subscriptionType)
+                        .orElseThrow(
+                                () -> new ResourceNotFoundException(
+                                        "Subscription not found"
+                                )
+                        );
+
+        if (subscriptionType == SubscriptionType.FREE) {
+            storyRepository.updateAccessTypeByAuthorId(
+                    user.getId(),
+                    StoryAccessType.PREMIUM,
+                    StoryAccessType.FREE
+            );
+        }
 
         user.setSubscription(subscription);
 
         userRepository.save(user);
 
-        return subscriptionMapper.toResponseDto(subscription);
+        return subscriptionMapper.toResponseDto(
+                subscription
+        );
     }
 }
