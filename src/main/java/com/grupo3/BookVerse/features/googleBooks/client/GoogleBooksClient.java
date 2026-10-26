@@ -12,23 +12,38 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 public class GoogleBooksClient {
 
+    private static final int MAX_RESULTS = 20;
+
     private final GoogleBooksProperties googleBooksProperties;
     private final RestTemplate restTemplate;
 
     public GoogleBooksApiResponseDto searchBooks(String query) {
-        String url = UriComponentsBuilder.fromUriString(googleBooksProperties.getUrl())
+
+        String url = UriComponentsBuilder
+                .fromUriString(googleBooksProperties.getUrl())
                 .queryParam("q", query)
+                .queryParam("printType", "books")
+                .queryParam("maxResults", MAX_RESULTS)
+                .queryParam("orderBy", "relevance")
                 .queryParam("key", googleBooksProperties.getKey())
                 .toUriString();
 
-        return restTemplate.getForObject(url, GoogleBooksApiResponseDto.class);
+        return restTemplate.getForObject(
+                url,
+                GoogleBooksApiResponseDto.class
+        );
     }
 
     public GoogleBookVolumeDto getBookByGoogleId(String googleBookId) {
-        String url = UriComponentsBuilder.fromUriString(googleBooksProperties.getUrl() + "/" + googleBookId)
-                .queryParam("key", googleBooksProperties.getKey())
+
+        String url = UriComponentsBuilder
+                .fromUriString(googleBooksProperties.getUrl() + "/" + googleBookId
+                )
+                .queryParam("key",googleBooksProperties.getKey()
+                )
                 .toUriString();
 
-        return restTemplate.getForObject(url, GoogleBookVolumeDto.class);
+        return restTemplate.getForObject(url,GoogleBookVolumeDto.class
+        );
     }
 }
