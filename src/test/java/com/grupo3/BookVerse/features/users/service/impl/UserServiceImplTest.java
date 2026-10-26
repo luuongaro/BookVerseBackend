@@ -97,7 +97,8 @@ class UserServiceImplTest {
                 savedUser.getIdExternal(),
                 "reader",
                 "reader@mail.com",
-                "ACTIVE"
+                "ACTIVE",
+                List.of("ROLE_USER")
         );
 
         when(userRepository.existsByEmail(request.email())).thenReturn(false);
@@ -216,7 +217,8 @@ class UserServiceImplTest {
                 UUID.randomUUID(),
                 "reader",
                 "reader@mail.com",
-                "ACTIVE"
+                "ACTIVE",
+                List.of("ROLE_USER")
         );
 
         when(userRepository.findAll()).thenReturn(List.of(user));
@@ -247,7 +249,8 @@ class UserServiceImplTest {
                 idExternal,
                 "reader",
                 "reader@mail.com",
-                "ACTIVE"
+                "ACTIVE",
+                List.of("ROLE_USER")
         );
 
         authenticateAs(targetUser);
@@ -313,7 +316,8 @@ class UserServiceImplTest {
                 idExternal,
                 "newname",
                 "new@mail.com",
-                "ACTIVE"
+                "ACTIVE",
+                List.of("ROLE_USER")
         );
 
         authenticateAs(existingUser);
