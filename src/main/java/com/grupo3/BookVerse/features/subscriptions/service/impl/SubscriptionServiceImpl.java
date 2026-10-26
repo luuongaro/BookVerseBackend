@@ -1,5 +1,6 @@
 package com.grupo3.BookVerse.features.subscriptions.service.impl;
 
+import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionEntity;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionType;
@@ -47,6 +48,15 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     public SubscriptionResponseDto upgradeAuthenticatedUserToPremium() {
         UserEntity authenticatedUser = getAuthenticatedUser();
 
+        if (
+                authenticatedUser.getSubscription().getType()
+                        == SubscriptionType.PREMIUM
+        ) {
+            throw new BadRequestException(
+                    "User already has a PREMIUM subscription"
+            );
+        }
+
         SubscriptionEntity premiumSubscription = subscriptionRepository.findByType(SubscriptionType.PREMIUM)
                 .orElseThrow(() -> new ResourceNotFoundException("Premium subscription not found"));
 
@@ -64,5 +74,109 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         }
 
         return user;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SubscriptionResponseDto getAuthenticatedUserSubscription() {
+
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
+
+        return subscriptionMapper.toResponseDto(
+                authenticatedUser.getSubscription()
+        );
+    }
+
+    @Override
+    @Transactional
+    public SubscriptionResponseDto downgradeAuthenticatedUserToFree() {
+
+        UserEntity authenticatedUser = getAuthenticatedUser();
+
+        if (
+                authenticatedUser.getSubscription().getType()
+                        == SubscriptionType.FREE
+        ) {
+            throw new BadRequestException(
+                    "User already has a FREE subscription"
+            );
+        }
+
+        SubscriptionEntity freeSubscription =
+                subscriptionRepository
+                        .findByType(SubscriptionType.FREE)
+                        .orElseThrow(
+                                () -> new ResourceNotFoundException(
+                                        "Free subscription not found"
+                                )
+                        );
+
+        authenticatedUser.setSubscription(
+                freeSubscription
+        );
+
+        userRepository.save(
+                authenticatedUser
+        );
+
+        return subscriptionMapper.toResponseDto(
+                freeSubscription
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SubscriptionResponseDto getUserSubscription(
+            UUID userIdExternal
+    ) {
+
+        UserEntity user =
+                userRepository
+                        .findByIdExternal(userIdExternal)
+                        .orElseThrow(
+                                () -> new ResourceNotFoundException(
+                                        "User not found"
+                                )
+                        );
+
+        return subscriptionMapper.toResponseDto(
+                user.getSubscription()
+        );
+    }
+
+    @Override
+    @Transactional
+    public SubscriptionResponseDto changeUserSubscription(
+            UUID userIdExternal,
+            SubscriptionType subscriptionType
+    ) {
+        UserEntity user = userRepository
+                .findByIdExternal(userIdExternal)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "User not found"
+                        )
+                );
+
+        if (user.getSubscription().getType() == subscriptionType) {
+            throw new BadRequestException(
+                    "User already has the selected subscription"
+            );
+        }
+
+        SubscriptionEntity subscription = subscriptionRepository
+                .findByType(subscriptionType)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Subscription not found"
+                        )
+                );
+
+        user.setSubscription(subscription);
+
+        userRepository.save(user);
+
+        return subscriptionMapper.toResponseDto(subscription);
     }
 }
