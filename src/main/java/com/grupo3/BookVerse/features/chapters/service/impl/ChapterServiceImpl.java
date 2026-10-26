@@ -8,8 +8,10 @@ import com.grupo3.BookVerse.features.chapters.dto.ChapterUpdateRequestDto;
 import com.grupo3.BookVerse.features.chapters.mappers.ChapterMapper;
 import com.grupo3.BookVerse.features.chapters.repository.ChapterRepository;
 import com.grupo3.BookVerse.features.chapters.service.ChapterService;
+import com.grupo3.BookVerse.features.stories.domain.StoryAccessType;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
+import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionType;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -63,21 +65,41 @@ public class ChapterServiceImpl implements ChapterService {
 
     @Override
     @Transactional(readOnly = true)
-    public ChapterResponseDto getChapterByIdExternal(UUID idExternal) {
+    public ChapterResponseDto getChapterByIdExternal(
+            UUID idExternal
+    ) {
         ChapterEntity chapter = findActiveChapterByIdExternal(idExternal);
 
         validateParentStoryIsActive(chapter);
 
-        return chapterMapper.toResponseDto(chapter);
+        UserEntity authenticatedUser = getAuthenticatedUser();
+
+        validateCanReadStory(chapter.getStory(), authenticatedUser);
+
+        validateCanReadChapter(chapter, authenticatedUser);
+
+        return chapterMapper.toResponseDto(
+                chapter
+        );
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ChapterResponseDto> getChaptersByStoryId(UUID storyId, Pageable pageable) {
+    public Page<ChapterResponseDto> getChaptersByStoryId(UUID storyId, Pageable pageable)
+    {
         StoryEntity story = findActiveStoryByIdExternal(storyId);
 
-        Page<ChapterEntity> chapters =
-                chapterRepository.findByStoryIdAndDeletedFalseOrderByChapterNumberAsc(story.getId(), pageable);
+        UserEntity authenticatedUser = getAuthenticatedUser();
+
+        validateCanReadStory(story, authenticatedUser);
+
+        Page<ChapterEntity> chapters;
+
+        if (canManageStory(story, authenticatedUser)) {
+            chapters = chapterRepository.findByStoryIdAndDeletedFalseOrderByChapterNumberAsc(story.getId(), pageable);
+        } else {
+            chapters = chapterRepository.findByStoryIdAndDeletedFalseAndPublishedTrueOrderByChapterNumberAsc(story.getId(), pageable);
+        }
 
         return chapters.map(chapterMapper::toResponseDto);
     }
@@ -154,4 +176,133 @@ public class ChapterServiceImpl implements ChapterService {
             throw new AccessDeniedException("You do not have permission to manage chapters for this story");
         }
     }
+
+    private void validateCanReadStory(StoryEntity story, UserEntity user)
+    {
+        boolean isOwner =
+                story.getAuthor() != null
+                        && story.getAuthor()
+                        .getId()
+                        .equals(user.getId());
+
+        boolean isAdmin =
+                user.getAuthorities()
+                        .stream()
+                        .anyMatch(
+                                authority ->
+                                        "ROLE_ADMIN".equals(
+                                                authority.getAuthority()
+                                        )
+                        );
+
+        boolean isModerator =
+                user.getAuthorities()
+                        .stream()
+                        .anyMatch(
+                                authority ->
+                                        "ROLE_MODERATOR".equals(
+                                                authority.getAuthority()
+                                        )
+                        );
+
+        boolean isPremiumStory =
+                story.getAccessType()
+                        == StoryAccessType.PREMIUM;
+
+        boolean isPremiumUser =
+                user.getSubscription() != null
+                        && user.getSubscription().getType()
+                        == SubscriptionType.PREMIUM;
+
+        if (
+                isPremiumStory
+                        && !isOwner
+                        && !isAdmin
+                        && !isModerator
+                        && !isPremiumUser
+        ) {
+            throw new AccessDeniedException(
+                    "You need a PREMIUM subscription to read this story"
+            );
+        }
+    }
+
+    private void validateCanReadChapter(
+            ChapterEntity chapter,
+            UserEntity user
+    ) {
+        if (chapter.isPublished()) {
+            return;
+        }
+
+        StoryEntity story =
+                chapter.getStory();
+
+        boolean isOwner =
+                story.getAuthor() != null
+                        && story.getAuthor()
+                        .getId()
+                        .equals(user.getId());
+
+        boolean isAdmin =
+                user.getAuthorities()
+                        .stream()
+                        .anyMatch(
+                                authority ->
+                                        "ROLE_ADMIN".equals(
+                                                authority.getAuthority()
+                                        )
+                        );
+
+        boolean isModerator =
+                user.getAuthorities()
+                        .stream()
+                        .anyMatch(
+                                authority ->
+                                        "ROLE_MODERATOR".equals(
+                                                authority.getAuthority()
+                                        )
+                        );
+
+        if (!isOwner && !isAdmin && !isModerator) {
+            throw new AccessDeniedException(
+                    "This chapter has not been published"
+            );
+        }
+    }
+
+
+    private boolean canManageStory(
+            StoryEntity story,
+            UserEntity user
+    ) {
+        boolean isOwner =
+                story.getAuthor() != null
+                        && story.getAuthor()
+                        .getId()
+                        .equals(user.getId());
+
+        boolean isAdmin =
+                user.getAuthorities()
+                        .stream()
+                        .anyMatch(
+                                authority ->
+                                        "ROLE_ADMIN".equals(
+                                                authority.getAuthority()
+                                        )
+                        );
+
+        boolean isModerator =
+                user.getAuthorities()
+                        .stream()
+                        .anyMatch(
+                                authority ->
+                                        "ROLE_MODERATOR".equals(
+                                                authority.getAuthority()
+                                        )
+                        );
+
+        return isOwner || isAdmin || isModerator;
+    }
+
 }

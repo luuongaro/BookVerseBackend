@@ -2,6 +2,7 @@ package com.grupo3.BookVerse.features.stories.service.impl;
 
 import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
+import com.grupo3.BookVerse.features.chapters.domain.ChapterEntity;
 import com.grupo3.BookVerse.features.chapters.mappers.ChapterMapper;
 import com.grupo3.BookVerse.features.stories.domain.StoryAccessType;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -73,6 +75,27 @@ public class StoryServiceImpl implements StoryService {
 
         validateCanAccessStory(story, authenticatedUser);
 
+        boolean canManage = canManageStory(story, authenticatedUser);
+
+        List<ChapterEntity> visibleChapters =
+                story.getChapters() == null
+                        ? List.of()
+                        : story.getChapters()
+                        .stream()
+                        .filter(chapter ->
+                                !chapter.isDeleted()
+                                        && (
+                                        canManage
+                                                || chapter.isPublished()
+                                )
+                        )
+                        .sorted(
+                                Comparator.comparingInt(
+                                        ChapterEntity::getChapterNumber
+                                )
+                        )
+                        .toList();
+
         return StoryDetailResponseDto.builder()
                 .idExternal(story.getIdExternal())
                 .authorId(story.getAuthor().getIdExternal())
@@ -83,17 +106,8 @@ public class StoryServiceImpl implements StoryService {
                 .deleted(story.isDeleted())
                 .createdAt(story.getCreatedAt())
                 .updatedAt(story.getUpdatedAt())
-                .chaptersCount(story.getChapters() != null ? story.getChapters().size() : 0)
-                .chapters(
-                        story.getChapters() == null
-                                ? java.util.List.of()
-                                : chapterMapper.toSummaryDtoList(
-                                story.getChapters().stream()
-                                        .filter(chapter -> !chapter.isDeleted())
-                                        .sorted(Comparator.comparingInt(chapter -> chapter.getChapterNumber()))
-                                        .toList()
-                        )
-                )
+                .chaptersCount(visibleChapters.size())
+                .chapters(chapterMapper.toSummaryDtoList(visibleChapters))
                 .build();
     }
 
@@ -114,12 +128,17 @@ public class StoryServiceImpl implements StoryService {
     public StoryResponseDto updateStory(UUID idExternal, StoryRequestDto storyRequestDto) {
 
         StoryEntity existingStory = findActiveStoryByIdExternal(idExternal);
+
         UserEntity authenticatedUser = getAuthenticatedUser();
 
         validateCanManageStory(existingStory, authenticatedUser);
 
+        validateAuthorCanPublishPremiumStory(existingStory.getAuthor(), storyRequestDto);
+
         existingStory.setTitle(storyRequestDto.getTitle());
+
         existingStory.setDescription(storyRequestDto.getDescription());
+
         existingStory.setAccessType(storyRequestDto.getAccessType());
 
         StoryEntity updatedStory = storyRepository.save(existingStory);
@@ -231,5 +250,36 @@ public class StoryServiceImpl implements StoryService {
         if (isPremiumStory && !isPremiumUser) {
             throw new AccessDeniedException("Only premium users can publish premium stories");
         }
+    }
+
+    private boolean canManageStory(StoryEntity story, UserEntity user) {
+
+        boolean isOwner =
+                story.getAuthor() != null
+                        && story.getAuthor()
+                        .getId()
+                        .equals(user.getId());
+
+        boolean isAdmin =
+                user.getAuthorities()
+                        .stream()
+                        .anyMatch(
+                                authority ->
+                                        "ROLE_ADMIN".equals(
+                                                authority.getAuthority()
+                                        )
+                        );
+
+        boolean isModerator =
+                user.getAuthorities()
+                        .stream()
+                        .anyMatch(
+                                authority ->
+                                        "ROLE_MODERATOR".equals(
+                                                authority.getAuthority()
+                                        )
+                        );
+
+        return isOwner || isAdmin || isModerator;
     }
 }
