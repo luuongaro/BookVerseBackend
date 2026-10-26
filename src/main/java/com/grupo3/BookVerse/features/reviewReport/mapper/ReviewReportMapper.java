@@ -29,10 +29,38 @@ public interface ReviewReportMapper {
 
     @Mapping(source = "idExternal", target = "reportId")
     @Mapping(source = "review.idExternal", target = "reviewId")
+    @Mapping(source = "review.book.idExternal", target = "bookId")
+    @Mapping(source = "review.story.idExternal", target = "storyId")
+    @Mapping(target = "workTitle", expression = "java(resolveWorkTitle(report))")
+    @Mapping(target = "thumbnailUrl", expression = "java(resolveThumbnailUrl(report))")
+    @Mapping(source = "review.reviewer.profileUsername", target = "reviewerName")
+    @Mapping(source = "review.rating", target = "rating")
+    @Mapping(source = "review.content", target = "reviewContent")
     @Mapping(source = "reporterUser.idExternal", target = "reporterUserId")
+    @Mapping(source = "reporterUser.profileUsername", target = "reporterUsername")
     @Mapping(source = "moderatorUser.idExternal", target = "moderatorUserId")
     @Mapping(source = "status", target = "status")
     ReviewReportResponseDto toResponseDto(ReviewReportEntity report);
 
     List<ReviewReportResponseDto> toResponseListDto(List<ReviewReportEntity> reports);
+
+    default String resolveWorkTitle(ReviewReportEntity report) {
+        var review = report.getReview();
+
+        if (review.getBook() != null) {
+            return review.getBook().getTitle();
+        }
+
+        return review.getStory() != null
+                ? review.getStory().getTitle()
+                : null;
+    }
+
+    default String resolveThumbnailUrl(ReviewReportEntity report) {
+        var review = report.getReview();
+
+        return review.getBook() != null
+                ? review.getBook().getThumbnailUrl()
+                : null;
+    }
 }
