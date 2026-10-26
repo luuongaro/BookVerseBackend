@@ -52,7 +52,14 @@ public interface UserMapper {
     void updateEntityFromDto(UserUpdateRequestDto dto, @MappingTarget UserEntity user);
 
     @Mapping(target = "username", expression = "java(user.getProfileUsername())")
-    @Mapping(target = "status", expression = "java(user.getStatus() != null ? user.getStatus().name() : null)")
+    @Mapping(
+            target = "status",
+            expression = "java(user.getStatus() != null ? user.getStatus().name() : null)"
+    )
+    @Mapping(
+            target = "roles",
+            expression = "java(user.getRoles() == null ? java.util.Collections.emptyList() : user.getRoles().stream().map(role -> role.getName()).toList())"
+    )
     UserResponseDto toResponseDto(UserEntity user);
 
     List<UserResponseDto> toResponseDtoList(List<UserEntity> users);
