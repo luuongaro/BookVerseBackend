@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import java.net.URI;
 
 @Component
 @RequiredArgsConstructor
@@ -19,31 +20,44 @@ public class GoogleBooksClient {
 
     public GoogleBooksApiResponseDto searchBooks(String query) {
 
-        String url = UriComponentsBuilder
+        URI uri = UriComponentsBuilder
                 .fromUriString(googleBooksProperties.getUrl())
                 .queryParam("q", query)
                 .queryParam("printType", "books")
-                .queryParam("maxResults", MAX_RESULTS)
+                .queryParam("maxResults", 20)
                 .queryParam("orderBy", "relevance")
                 .queryParam("key", googleBooksProperties.getKey())
-                .toUriString();
+                .build()
+                .encode()
+                .toUri();
 
         return restTemplate.getForObject(
-                url,
+                uri,
                 GoogleBooksApiResponseDto.class
         );
     }
 
-    public GoogleBookVolumeDto getBookByGoogleId(String googleBookId) {
+    public GoogleBookVolumeDto getBookByGoogleId(
+            String googleBookId
+    ) {
 
-        String url = UriComponentsBuilder
-                .fromUriString(googleBooksProperties.getUrl() + "/" + googleBookId
+        URI uri = UriComponentsBuilder
+                .fromUriString(
+                        googleBooksProperties.getUrl()
+                                + "/"
+                                + googleBookId
                 )
-                .queryParam("key",googleBooksProperties.getKey()
+                .queryParam(
+                        "key",
+                        googleBooksProperties.getKey()
                 )
-                .toUriString();
+                .build()
+                .encode()
+                .toUri();
 
-        return restTemplate.getForObject(url,GoogleBookVolumeDto.class
+        return restTemplate.getForObject(
+                uri,
+                GoogleBookVolumeDto.class
         );
     }
 }
