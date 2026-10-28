@@ -39,7 +39,6 @@ public interface ReviewReportMapper {
     @Mapping(source = "reporterUser.idExternal", target = "reporterUserId")
     @Mapping(source = "reporterUser.profileUsername", target = "reporterUsername")
     @Mapping(source = "moderatorUser.idExternal", target = "moderatorUserId")
-    @Mapping(source = "status", target = "status")
     ReviewReportResponseDto toResponseDto(ReviewReportEntity report);
 
     List<ReviewReportResponseDto> toResponseListDto(List<ReviewReportEntity> reports);

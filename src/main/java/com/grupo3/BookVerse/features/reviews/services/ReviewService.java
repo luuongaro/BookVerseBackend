@@ -1,6 +1,7 @@
 package com.grupo3.BookVerse.features.reviews.services;
 
 import com.grupo3.BookVerse.features.reviews.dto.ReviewCreateRequestDto;
+import com.grupo3.BookVerse.features.reviews.dto.ReviewRatingSummaryDto;
 import com.grupo3.BookVerse.features.reviews.dto.ReviewResponseDto;
 import com.grupo3.BookVerse.features.reviews.dto.ReviewUpdateRequestDto;
 
@@ -22,4 +23,8 @@ public interface ReviewService {
     ReviewResponseDto updateReview(UUID reviewId, ReviewUpdateRequestDto reviewUpdateRequestDto);
 
     void deleteReview(UUID reviewId);
+
+    ReviewRatingSummaryDto getBookRatingSummary(UUID bookId);
+
+    ReviewRatingSummaryDto getStoryRatingSummary(UUID storyId);
 }

@@ -92,7 +92,7 @@ public class ReviewReportController {
     @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "Create a new review report",
-            description = "Creates a new report associated with a review and a reporting user.",
+            description = "Creates a new report for a review using the authenticated user as the reporter.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -100,7 +100,7 @@ public class ReviewReportController {
             @ApiResponse(responseCode = "400", description = "Invalid request body or invalid report target", content = @Content),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Review or user not found", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Review not found", content = @Content),
             @ApiResponse(responseCode = "409", description = "Duplicate pending report detected", content = @Content)
     })
     public ResponseEntity<ReviewReportResponseDto> createReport(
@@ -119,11 +119,10 @@ public class ReviewReportController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Review report approved successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid moderation request", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Invalid moderation request or report already moderated", content = @Content),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Review report not found", content = @Content),
-            @ApiResponse(responseCode = "409", description = "Review report already moderated", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Review report not found", content = @Content)
     })
     public ResponseEntity<ReviewReportResponseDto> approveReport(
             @PathVariable UUID reportId,
@@ -141,16 +140,41 @@ public class ReviewReportController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Review report rejected successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid moderation request", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Invalid moderation request or report already moderated", content = @Content),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Review report not found", content = @Content),
-            @ApiResponse(responseCode = "409", description = "Review report already moderated", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Review report not found", content = @Content)
     })
     public ResponseEntity<ReviewReportResponseDto> rejectReport(
             @PathVariable UUID reportId,
             @Valid @RequestBody ReviewReportModerationRequestDto dto
     ) {
         return ResponseEntity.ok(reviewReportService.rejectReport(reportId, dto));
+    }
+
+    @PatchMapping("/{reportId}/restore")
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    @Operation(
+            summary = "Restore a taken down review",
+            description = "Restores the review associated with an approved report by changing its takedown status back to ACTIVE.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Review restored successfully"),
+            @ApiResponse(responseCode = "400", description = "The report was not approved, the review is deleted, or the review is not currently taken down", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Review report or associated review not found", content = @Content)
+    })
+    public ResponseEntity<Void> restoreReview(
+            @Parameter(
+                    description = "External UUID of the approved review report",
+                    required = true,
+                    example = "550e8400-e29b-41d4-a716-446655440000"
+            )
+            @PathVariable UUID reportId
+    ) {
+        reviewReportService.restoreReview(reportId);
+        return ResponseEntity.noContent().build();
     }
 }

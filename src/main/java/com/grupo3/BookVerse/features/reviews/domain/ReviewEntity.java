@@ -4,6 +4,8 @@ import com.grupo3.BookVerse.features.books.domain.BookEntity;
 import com.grupo3.BookVerse.features.reviewReport.domain.ReviewReportEntity;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -44,6 +46,8 @@ public class ReviewEntity {
     @Builder.Default
     private List<ReviewReportEntity> reports = new ArrayList<>();
 
+    @Min(value = 1, message = "Rating must be at least 1")
+    @Max(value = 5, message = "Rating cannot exceed 5")
     @Column(nullable = false)
     private Integer rating;
 
@@ -71,13 +75,14 @@ public class ReviewEntity {
 
     @PrePersist
     protected void onCreate() {
+        validateTarget();
+
         if (idExternal == null) {
             idExternal = UUID.randomUUID();
         }
 
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-
         deleted = false;
 
         if (takedownStatus == null) {
@@ -87,6 +92,19 @@ public class ReviewEntity {
 
     @PreUpdate
     protected void onUpdate() {
+        validateTarget();
         updatedAt = LocalDateTime.now();
     }
+
+    private void validateTarget() {
+        boolean hasBook = book != null;
+        boolean hasStory = story != null;
+
+        if (hasBook == hasStory) {
+            throw new IllegalStateException(
+                    "A review must be associated with exactly one target: either a book or a story"
+            );
+        }
+    }
+
 }

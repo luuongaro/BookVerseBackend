@@ -6,11 +6,7 @@ import java.util.UUID;
 
 public record ReviewCreateRequestDto(
 
-        @NotNull(message = "Reviewer id is required")
-        UUID reviewerId,
-
         UUID bookId,
-
         UUID storyId,
 
         @NotNull(message = "Rating is required")
@@ -19,8 +15,12 @@ public record ReviewCreateRequestDto(
         Integer rating,
 
         @NotBlank(message = "Review content cannot be empty")
-        @Size(min = 10, max = 5000,
-                message = "Review content must be between 10 and 5000 characters")
+        @Size(
+                min = 10,
+                max = 5000,
+                message = "Review content must be between 10 and 5000 characters"
+        )
         String content
 
-) {}
+) {
+}
