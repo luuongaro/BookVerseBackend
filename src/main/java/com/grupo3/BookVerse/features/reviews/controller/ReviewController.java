@@ -1,6 +1,7 @@
 package com.grupo3.BookVerse.features.reviews.controller;
 
 import com.grupo3.BookVerse.features.reviews.dto.ReviewCreateRequestDto;
+import com.grupo3.BookVerse.features.reviews.dto.ReviewRatingSummaryDto;
 import com.grupo3.BookVerse.features.reviews.dto.ReviewResponseDto;
 import com.grupo3.BookVerse.features.reviews.dto.ReviewUpdateRequestDto;
 import com.grupo3.BookVerse.features.reviews.services.ReviewService;
@@ -128,7 +129,7 @@ public class ReviewController {
             @ApiResponse(responseCode = "400", description = "Invalid request body or invalid review target", content = @Content),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Reviewer, book, or story not found", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Book, or story not found", content = @Content),
             @ApiResponse(responseCode = "409", description = "Duplicate review detected", content = @Content)
     })
     public ResponseEntity<ReviewResponseDto> createReview(
@@ -189,5 +190,56 @@ public class ReviewController {
     ) {
         reviewService.deleteReview(reviewId);
         return ResponseEntity.noContent().build();
+    }
+
+
+    @GetMapping("/book/{bookId}/rating-summary")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Get rating summary for a book",
+            description = "Retrieves the average rating and total number of active ratings for a specific commercial book.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Book rating summary retrieved successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Book not found", content = @Content)
+    })
+    public ResponseEntity<ReviewRatingSummaryDto> getBookRatingSummary(
+            @Parameter(
+                    description = "External UUID of the book",
+                    required = true,
+                    example = "550e8400-e29b-41d4-a716-446655440000"
+            )
+            @PathVariable UUID bookId
+    ) {
+        return ResponseEntity.ok(
+                reviewService.getBookRatingSummary(bookId)
+        );
+    }
+
+    @GetMapping("/story/{storyId}/rating-summary")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Get rating summary for a story",
+            description = "Retrieves the average rating and total number of active ratings for a specific story.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Story rating summary retrieved successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Story not found", content = @Content)
+    })
+    public ResponseEntity<ReviewRatingSummaryDto> getStoryRatingSummary(
+            @Parameter(
+                    description = "External UUID of the story",
+                    required = true,
+                    example = "550e8400-e29b-41d4-a716-446655440000"
+            )
+            @PathVariable UUID storyId
+    ) {
+        return ResponseEntity.ok(
+                reviewService.getStoryRatingSummary(storyId)
+        );
     }
 }

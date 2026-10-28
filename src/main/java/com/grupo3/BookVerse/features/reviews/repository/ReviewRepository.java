@@ -3,6 +3,8 @@ package com.grupo3.BookVerse.features.reviews.repository;
 import com.grupo3.BookVerse.features.reviews.domain.ReviewEntity;
 import com.grupo3.BookVerse.features.reviews.domain.ReviewTakedownStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -42,4 +44,38 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, Long> {
     boolean existsByReviewerIdAndBookIdAndDeletedFalse(Long reviewerId, Long bookId);
 
     boolean existsByReviewerIdAndStoryIdAndDeletedFalse(Long reviewerId, Long storyId);
+
+    @Query("""
+        SELECT COALESCE(AVG(r.rating), 0.0)
+        FROM ReviewEntity r
+        WHERE r.book.id = :bookId
+          AND r.deleted = false
+          AND r.takedownStatus = :status
+        """)
+    Double calculateAverageRatingByBookId(
+            @Param("bookId") Long bookId,
+            @Param("status") ReviewTakedownStatus status
+    );
+
+    long countByBookIdAndDeletedFalseAndTakedownStatus(
+            Long bookId,
+            ReviewTakedownStatus takedownStatus
+    );
+
+    @Query("""
+        SELECT COALESCE(AVG(r.rating), 0.0)
+        FROM ReviewEntity r
+        WHERE r.story.id = :storyId
+          AND r.deleted = false
+          AND r.takedownStatus = :status
+        """)
+    Double calculateAverageRatingByStoryId(
+            @Param("storyId") Long storyId,
+            @Param("status") ReviewTakedownStatus status
+    );
+
+    long countByStoryIdAndDeletedFalseAndTakedownStatus(
+            Long storyId,
+            ReviewTakedownStatus takedownStatus
+    );
 }

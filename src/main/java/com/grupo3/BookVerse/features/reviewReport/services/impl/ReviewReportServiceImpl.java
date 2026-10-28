@@ -15,7 +15,6 @@ import com.grupo3.BookVerse.features.reviews.domain.ReviewEntity;
 import com.grupo3.BookVerse.features.reviews.domain.ReviewTakedownStatus;
 import com.grupo3.BookVerse.features.reviews.repository.ReviewRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
-import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -34,7 +33,6 @@ public class ReviewReportServiceImpl implements ReviewReportService {
     private final ReviewReportRepository reviewReportRepository;
     private final ReviewReportMapper reviewReportMapper;
     private final ReviewRepository reviewRepository;
-    private final UserRepository userRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -66,10 +64,7 @@ public class ReviewReportServiceImpl implements ReviewReportService {
     @Override
     @Transactional
     public ReviewReportResponseDto createReport(ReviewReportCreateRequestDto dto) {
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        UserEntity reporter = findUserByIdExternal(dto.reporterUserId());
-
-        validateAuthenticatedUserMatchesReporter(authenticatedUser, reporter);
+        UserEntity reporter = getAuthenticatedUser();
 
         ReviewEntity review = findActiveReviewByIdExternal(dto.reviewId());
 
@@ -104,12 +99,17 @@ public class ReviewReportServiceImpl implements ReviewReportService {
         review.setTakedownStatus(ReviewTakedownStatus.TAKEN_DOWN);
         review.setTakedownAt(LocalDateTime.now());
         review.setTakedownReason(
-                dto.resolutionComment() != null && !dto.resolutionComment().isBlank()
+                dto.resolutionComment() != null
+                        && !dto.resolutionComment().isBlank()
                         ? dto.resolutionComment()
                         : report.getReason()
         );
 
-        ReviewReportEntity updated = reviewReportRepository.save(report);
+        reviewRepository.save(review);
+
+        ReviewReportEntity updated =
+                reviewReportRepository.save(report);
+
         return reviewReportMapper.toResponseDto(updated);
     }
 
@@ -129,6 +129,22 @@ public class ReviewReportServiceImpl implements ReviewReportService {
 
         ReviewReportEntity updated = reviewReportRepository.save(report);
         return reviewReportMapper.toResponseDto(updated);
+    }
+
+    @Override
+    @Transactional
+    public void restoreReview(UUID reportId) {
+        ReviewReportEntity report = findReportByIdExternal(reportId);
+
+        validateReportAllowsRestoration(report);
+
+        ReviewEntity review = report.getReview();
+
+        review.setTakedownStatus(ReviewTakedownStatus.ACTIVE);
+        review.setTakedownAt(null);
+        review.setTakedownReason(null);
+
+        reviewRepository.save(review);
     }
 
     private ReviewReportEntity findReportByIdExternal(UUID reportId) {
@@ -152,6 +168,35 @@ public class ReviewReportServiceImpl implements ReviewReportService {
         return report;
     }
 
+    private void validateReportAllowsRestoration(
+            ReviewReportEntity report
+    ) {
+        if (report.getStatus() != ReviewReportStatus.APPROVED) {
+            throw new BadRequestException(
+                    "Only an approved review report can restore its associated review"
+            );
+        }
+
+        ReviewEntity review = report.getReview();
+
+        if (review == null) {
+            throw new ResourceNotFoundException(
+                    "The review associated with this report was not found"
+            );
+        }
+
+        if (review.isDeleted()) {
+            throw new BadRequestException(
+                    "A deleted review cannot be restored"
+            );
+        }
+
+        if (review.getTakedownStatus() != ReviewTakedownStatus.TAKEN_DOWN) {
+            throw new BadRequestException(
+                    "The review is not currently taken down"
+            );
+        }
+    }
     private ReviewEntity findActiveReviewByIdExternal(UUID reviewId) {
         return reviewRepository.findByIdExternalAndDeletedFalse(reviewId)
                 .orElseThrow(() ->
@@ -161,14 +206,6 @@ public class ReviewReportServiceImpl implements ReviewReportService {
                 );
     }
 
-    private UserEntity findUserByIdExternal(UUID userId) {
-        return userRepository.findByIdExternal(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found with idExternal: " + userId
-                        )
-                );
-    }
 
     private UserEntity getAuthenticatedUser() {
         Authentication authentication =
@@ -180,17 +217,6 @@ public class ReviewReportServiceImpl implements ReviewReportService {
         }
 
         return user;
-    }
-
-    private void validateAuthenticatedUserMatchesReporter(
-            UserEntity authenticatedUser,
-            UserEntity reporter
-    ) {
-        if (!authenticatedUser.getId().equals(reporter.getId())) {
-            throw new AccessDeniedException(
-                    "You cannot create a report on behalf of another user"
-            );
-        }
     }
 
     private void validateReviewCanBeReported(ReviewEntity review) {
@@ -230,4 +256,6 @@ public class ReviewReportServiceImpl implements ReviewReportService {
             );
         }
     }
+
+
 }

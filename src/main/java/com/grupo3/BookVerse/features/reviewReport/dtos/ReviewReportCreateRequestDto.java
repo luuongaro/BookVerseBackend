@@ -11,9 +11,6 @@ public record ReviewReportCreateRequestDto(
         @NotNull(message = "Review id is required")
         UUID reviewId,
 
-        @NotNull(message = "Reporter user id is required")
-        UUID reporterUserId,
-
         @NotBlank(message = "Reason cannot be empty")
         @Size(min = 5, max = 1000, message = "Reason must be between 5 and 1000 characters")
         String reason,

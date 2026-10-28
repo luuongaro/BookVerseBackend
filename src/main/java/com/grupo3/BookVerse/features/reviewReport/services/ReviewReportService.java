@@ -20,4 +20,5 @@ public interface ReviewReportService {
     ReviewReportResponseDto approveReport(UUID reportId, ReviewReportModerationRequestDto dto);
 
     ReviewReportResponseDto rejectReport(UUID reportId, ReviewReportModerationRequestDto dto);
-}
+
+    void restoreReview(UUID reportId);}

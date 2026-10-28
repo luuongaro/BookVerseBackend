@@ -8,6 +8,7 @@ import com.grupo3.BookVerse.features.books.repository.BookRepository;
 import com.grupo3.BookVerse.features.reviews.domain.ReviewEntity;
 import com.grupo3.BookVerse.features.reviews.domain.ReviewTakedownStatus;
 import com.grupo3.BookVerse.features.reviews.dto.ReviewCreateRequestDto;
+import com.grupo3.BookVerse.features.reviews.dto.ReviewRatingSummaryDto;
 import com.grupo3.BookVerse.features.reviews.dto.ReviewResponseDto;
 import com.grupo3.BookVerse.features.reviews.dto.ReviewUpdateRequestDto;
 import com.grupo3.BookVerse.features.reviews.mapper.ReviewMapper;
@@ -16,7 +17,6 @@ import com.grupo3.BookVerse.features.reviews.services.ReviewService;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
-import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -33,7 +33,6 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final ReviewMapper reviewMapper;
-    private final UserRepository userRepository;
     private final BookRepository bookRepository;
     private final StoryRepository storyRepository;
 
@@ -88,10 +87,7 @@ public class ReviewServiceImpl implements ReviewService {
     public ReviewResponseDto createReview(ReviewCreateRequestDto dto) {
         validateExactlyOneTarget(dto.bookId(), dto.storyId());
 
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        UserEntity reviewer = findUserByIdExternal(dto.reviewerId());
-
-        validateAuthenticatedUserMatchesReviewer(authenticatedUser, reviewer);
+        UserEntity reviewer = getAuthenticatedUser();
 
         ReviewEntity review = reviewMapper.toEntity(dto);
         review.setReviewer(reviewer);
@@ -104,9 +100,7 @@ public class ReviewServiceImpl implements ReviewService {
 
             review.setBook(book);
             review.setStory(null);
-        }
-
-        if (dto.storyId() != null) {
+        } else {
             StoryEntity story = findActiveStoryByIdExternal(dto.storyId());
 
             validateStoryIsNotOwnedByReviewer(story, reviewer);
@@ -126,7 +120,7 @@ public class ReviewServiceImpl implements ReviewService {
         ReviewEntity existing = findActiveReviewByIdExternal(reviewId);
         UserEntity authenticatedUser = getAuthenticatedUser();
 
-        validateCanManageReview(existing, authenticatedUser);
+        validateCanUpdateReview(existing, authenticatedUser);
 
         existing.setRating(dto.rating());
         existing.setContent(dto.content());
@@ -141,7 +135,7 @@ public class ReviewServiceImpl implements ReviewService {
         ReviewEntity review = findActiveReviewByIdExternal(reviewId);
         UserEntity authenticatedUser = getAuthenticatedUser();
 
-        validateCanManageReview(review, authenticatedUser);
+        validateCanDeleteReview(review, authenticatedUser);
 
         review.setDeleted(true);
         reviewRepository.save(review);
@@ -159,14 +153,6 @@ public class ReviewServiceImpl implements ReviewService {
                 );
     }
 
-    private UserEntity findUserByIdExternal(UUID userId) {
-        return userRepository.findByIdExternal(userId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "User not found with idExternal: " + userId
-                        )
-                );
-    }
 
     private BookEntity findActiveBookByIdExternal(UUID bookId) {
         BookEntity book = bookRepository.findByIdExternal(bookId)
@@ -202,17 +188,6 @@ public class ReviewServiceImpl implements ReviewService {
         }
 
         return user;
-    }
-
-    private void validateAuthenticatedUserMatchesReviewer(
-            UserEntity authenticatedUser,
-            UserEntity reviewer
-    ) {
-        if (!authenticatedUser.getId().equals(reviewer.getId())) {
-            throw new AccessDeniedException(
-                    "You cannot create a review on behalf of another user"
-            );
-        }
     }
 
     private void validateExactlyOneTarget(UUID bookId, UUID storyId) {
@@ -261,5 +236,91 @@ public class ReviewServiceImpl implements ReviewService {
                     "You do not have permission to manage this review"
             );
         }
+    }
+
+    private void validateCanUpdateReview(
+            ReviewEntity review,
+            UserEntity user
+    ) {
+        boolean isOwner = review.getReviewer() != null
+                && review.getReviewer().getId().equals(user.getId());
+
+        if (!isOwner) {
+            throw new AccessDeniedException(
+                    "You do not have permission to update this review"
+            );
+        }
+    }
+
+    private void validateCanDeleteReview(
+            ReviewEntity review,
+            UserEntity user
+    ) {
+        boolean isOwner = review.getReviewer() != null
+                && review.getReviewer().getId().equals(user.getId());
+
+        boolean canModerate = user.getAuthorities().stream()
+                .anyMatch(authority ->
+                        "ROLE_ADMIN".equals(authority.getAuthority())
+                                || "ROLE_MODERATOR".equals(authority.getAuthority())
+                );
+
+        if (!isOwner && !canModerate) {
+            throw new AccessDeniedException(
+                    "You do not have permission to delete this review"
+            );
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ReviewRatingSummaryDto getBookRatingSummary(UUID bookId) {
+        BookEntity book = findActiveBookByIdExternal(bookId);
+
+        Double average = reviewRepository.calculateAverageRatingByBookId(
+                book.getId(),
+                ReviewTakedownStatus.ACTIVE
+        );
+
+        long total = reviewRepository
+                .countByBookIdAndDeletedFalseAndTakedownStatus(
+                        book.getId(),
+                        ReviewTakedownStatus.ACTIVE
+                );
+
+        return new ReviewRatingSummaryDto(
+                roundAverage(average),
+                total
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ReviewRatingSummaryDto getStoryRatingSummary(UUID storyId) {
+        StoryEntity story = findActiveStoryByIdExternal(storyId);
+
+        Double average = reviewRepository.calculateAverageRatingByStoryId(
+                story.getId(),
+                ReviewTakedownStatus.ACTIVE
+        );
+
+        long total = reviewRepository
+                .countByStoryIdAndDeletedFalseAndTakedownStatus(
+                        story.getId(),
+                        ReviewTakedownStatus.ACTIVE
+                );
+
+        return new ReviewRatingSummaryDto(
+                roundAverage(average),
+                total
+        );
+    }
+
+    private double roundAverage(Double average) {
+        if (average == null) {
+            return 0.0;
+        }
+
+        return Math.round(average * 10.0) / 10.0;
     }
 }
