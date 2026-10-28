@@ -10,6 +10,9 @@ import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -41,6 +44,12 @@ class ChapterServiceImplTest {
     @InjectMocks
     private ChapterServiceImpl chapterService;
 
+
+    @BeforeEach
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     // verifies that the service correctly retrieves all non-deleted chapters and maps them to dtos
     @Test
@@ -94,6 +103,11 @@ class ChapterServiceImplTest {
     //Verifies that the service correctly retrieves a chapter by id
     @Test
     void shouldReturnChapterByIdExternal() {
+        var reader = new UserEntity();
+        reader.setId(1L);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(reader, null, List.of()));
+
 
         UUID id = UUID.randomUUID();
 
@@ -105,6 +119,7 @@ class ChapterServiceImplTest {
                 ChapterEntity.builder()
                         .idExternal(id)
                         .title("Chapter One")
+                        .published(true)
                         .story(story)
                         .deleted(false)
                         .build();
