@@ -1,7 +1,6 @@
 package com.grupo3.BookVerse.features.groups.groupMember.mappers;
 
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
-import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberRequestDto;
 import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberResponseDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -10,15 +9,6 @@ import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface GroupMemberMapper {
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "idExternal", ignore = true)
-    @Mapping(target = "joinedAt", ignore = true)
-    @Mapping(target = "group", ignore = true)
-    @Mapping(target = "user", ignore = true)
-    @Mapping(target = "memberType", ignore = true)
-    @Mapping(target = "status", ignore = true)
-    GroupMemberEntity toEntity(GroupMemberRequestDto requestDto);
 
     @Mapping(target = "groupId", source = "group.idExternal")
     @Mapping(target = "groupName", source = "group.name")

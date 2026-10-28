@@ -13,6 +13,7 @@ import com.grupo3.BookVerse.features.groups.groupMember.service.GroupMemberServi
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
+import com.grupo3.BookVerse.features.users.domain.UserStatus;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -38,30 +39,41 @@ public class GroupMemberServiceImpl implements GroupMemberService {
 
     @Override
     @Transactional
-    public GroupMemberResponseDto addMemberToGroup(UUID groupId, GroupMemberRequestDto requestDto) {
+    public GroupMemberResponseDto addMemberToGroup(
+            UUID groupId,
+            GroupMemberRequestDto requestDto
+    ) {
         ReadingGroupEntity group = findGroupByIdExternal(groupId);
         UserEntity authenticatedUser = getAuthenticatedUser();
-        UserEntity targetUser = findUserByIdExternal(requestDto.getUserId());
 
         validateCanManageMembers(groupId, authenticatedUser);
 
+        String email = requestDto.getEmail().trim();
+        UserEntity targetUser = findUserByEmail(email);
+
+        if (targetUser.getStatus() != UserStatus.ACTIVE) {
+            throw new AccessDeniedException(
+                    "Only active users can be added to a reading group"
+            );
+        }
+
         GroupMemberEntity existingMembership = groupMemberRepository
-                .findByGroupIdExternalAndUserIdExternal(groupId, targetUser.getIdExternal())
+                .findByGroupIdExternalAndUserIdExternal(
+                        groupId,
+                        targetUser.getIdExternal()
+                )
                 .orElse(null);
 
         if (existingMembership != null) {
             if (existingMembership.getStatus() == GroupMemberStatus.ACTIVE) {
                 throw new DuplicateResourceException(
-                        "User with idExternal " + targetUser.getIdExternal()
-                                + " is already an active member of group with idExternal " + groupId
+                        "User is already an active member of this group"
                 );
             }
 
             if (existingMembership.getStatus() == GroupMemberStatus.REMOVED) {
                 throw new AccessDeniedException(
-                        "User with idExternal " + targetUser.getIdExternal()
-                                + " was removed from group with idExternal " + groupId
-                                + " and cannot be re-added automatically"
+                        "A removed user cannot be added to this group again"
                 );
             }
 
@@ -69,17 +81,22 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             existingMembership.setMemberType(GroupMemberType.MEMBER);
             existingMembership.setJoinedAt(LocalDateTime.now());
 
-            GroupMemberEntity reactivatedMembership = groupMemberRepository.save(existingMembership);
+            GroupMemberEntity reactivatedMembership =
+                    groupMemberRepository.save(existingMembership);
+
             return groupMemberMapper.toResponseDto(reactivatedMembership);
         }
 
-        GroupMemberEntity groupMemberEntity = groupMemberMapper.toEntity(requestDto);
-        groupMemberEntity.setGroup(group);
-        groupMemberEntity.setUser(targetUser);
-        groupMemberEntity.setMemberType(GroupMemberType.MEMBER);
-        groupMemberEntity.setStatus(GroupMemberStatus.ACTIVE);
+        GroupMemberEntity groupMemberEntity = GroupMemberEntity.builder()
+                .group(group)
+                .user(targetUser)
+                .memberType(GroupMemberType.MEMBER)
+                .status(GroupMemberStatus.ACTIVE)
+                .build();
 
-        GroupMemberEntity savedGroupMember = groupMemberRepository.save(groupMemberEntity);
+        GroupMemberEntity savedGroupMember =
+                groupMemberRepository.save(groupMemberEntity);
+
         return groupMemberMapper.toResponseDto(savedGroupMember);
     }
 
@@ -259,6 +276,13 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         return userRepository.findByIdExternal(userId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User not found with idExternal: " + userId
+                ));
+    }
+
+    private UserEntity findUserByEmail(String email) {
+        return userRepository.findByEmailWithRoles(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found with email: " + email
                 ));
     }
 
