@@ -69,6 +69,28 @@ public class ReadingStatusController {
         return ResponseEntity.ok(readingStatusService.getAllReadingStatuses());
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Get my reading statuses",
+            description = "Retrieves reading statuses for the authenticated user.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Reading statuses retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content
+            )
+    })
+    public ResponseEntity<List<ReadingStatusResponseDto>> getMyReadingStatuses() {
+        return ResponseEntity.ok(readingStatusService.getMyReadingStatuses());
+    }
+
     @GetMapping("/{idExternal}")
     @PreAuthorize("isAuthenticated()")
     @Operation(
