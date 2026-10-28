@@ -1,9 +1,8 @@
 package com.grupo3.BookVerse.features.groups.groupMember.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
-
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -12,6 +11,7 @@ import java.util.UUID;
 @Builder
 public class GroupMemberRequestDto {
 
-    @NotNull(message = "User ID is required")
-    private UUID userId;
+    @NotBlank(message = "El correo es obligatorio")
+    @Email(message = "Ingresá un correo válido")
+    private String email;
 }

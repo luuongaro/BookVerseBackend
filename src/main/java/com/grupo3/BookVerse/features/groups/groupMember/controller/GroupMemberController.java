@@ -35,16 +35,16 @@ public class GroupMemberController {
     @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "Add a user to a reading group",
-            description = "Adds a user to a reading group using the group's external UUID and the target user's external UUID.",
+            description = "Adds a user to a reading group using the target user's email address.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Group member added successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid request body", content = @Content),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Reading group or user not found", content = @Content),
-            @ApiResponse(responseCode = "409", description = "User is already an active member of the group", content = @Content)
+            @ApiResponse(responseCode = "400", description = "Invalid request body"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Reading group or user not found"),
+            @ApiResponse(responseCode = "409", description = "User is already an active member of the group")
     })
     public ResponseEntity<GroupMemberResponseDto> addMemberToGroup(
             @Parameter(
