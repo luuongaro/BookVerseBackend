@@ -19,6 +19,8 @@ public interface ReadingStatusService {
 
     List<ReadingStatusResponseDto> getAllReadingStatuses();
 
+    List<ReadingStatusResponseDto> getMyReadingStatuses();
+
     List<ReadingStatusResponseDto> getReadingStatusesByUser(
             UUID userId
     );

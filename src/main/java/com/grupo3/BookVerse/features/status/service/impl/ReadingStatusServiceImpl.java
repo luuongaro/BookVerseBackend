@@ -121,6 +121,19 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<ReadingStatusResponseDto> getMyReadingStatuses() {
+        UserEntity authenticatedUser = getAuthenticatedUser();
+
+        List<ReadingStatusEntity> readingStatuses =
+                readingStatusRepository.findByUserIdExternal(
+                        authenticatedUser.getIdExternal()
+                );
+
+        return readingStatusMapper.toResponseDtoList(readingStatuses);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<ReadingStatusResponseDto> getReadingStatusesByUser(
             UUID userId
     ) {
