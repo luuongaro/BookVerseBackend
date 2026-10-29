@@ -16,10 +16,15 @@ public interface TipMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "sender", ignore = true)
     @Mapping(target = "receiver", ignore = true)
+    @Mapping(target = "story", ignore = true)
+    @Mapping(target = "payment", ignore = true)
     TipEntity toEntity(TipRequestDto dto);
 
     @Mapping(target = "senderUserId", source = "sender.idExternal")
     @Mapping(target = "receiverUserId", source = "receiver.idExternal")
+    @Mapping(target = "storyId", source = "story.idExternal")
+    @Mapping(target = "paymentId", source = "payment.idExternal")
+    @Mapping(target = "paymentStatus", source = "payment.status")
     TipResponseDto toResponseDto(TipEntity tipEntity);
 
     List<TipResponseDto> toResponseDtoList(List<TipEntity> tips);

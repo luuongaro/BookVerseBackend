@@ -1,5 +1,7 @@
 package com.grupo3.BookVerse.features.tips.domain;
 
+import com.grupo3.BookVerse.features.payments.domain.PaymentEntity;
+import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -52,4 +54,15 @@ public class TipEntity {
     @JoinColumn(name = "receiver_user_id", nullable = false)
     private UserEntity receiver;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "story_id", nullable = false)
+    private StoryEntity story;
+
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "payment_id",
+            nullable = false,
+            unique = true
+    )
+    private PaymentEntity payment;
 }
