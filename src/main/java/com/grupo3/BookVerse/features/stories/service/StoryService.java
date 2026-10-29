@@ -15,6 +15,8 @@ public interface StoryService {
 
     Page<StoryResponseDto> getAllStories(Pageable pageable);
 
+    Page<StoryResponseDto> getStoriesToExplore(Pageable pageable);
+
     StoryDetailResponseDto getStoryByIdExternal(UUID idExternal);
 
     Page<StoryResponseDto> getStoriesByAuthorId(UUID authorId, Pageable pageable);

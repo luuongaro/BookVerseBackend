@@ -87,6 +87,13 @@ public class ChapterServiceImpl implements ChapterService {
     @Transactional(readOnly = true)
     public Page<ChapterResponseDto> getChaptersByStoryId(UUID storyId, Pageable pageable)
     {
+        return getChaptersByStoryId(storyId, pageable, false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ChapterResponseDto> getChaptersByStoryId(UUID storyId, Pageable pageable, boolean publishedOnly)
+    {
         StoryEntity story = findActiveStoryByIdExternal(storyId);
 
         UserEntity authenticatedUser = getAuthenticatedUser();
@@ -95,7 +102,7 @@ public class ChapterServiceImpl implements ChapterService {
 
         Page<ChapterEntity> chapters;
 
-        if (canManageStory(story, authenticatedUser)) {
+        if (!publishedOnly && canManageStory(story, authenticatedUser)) {
             chapters = chapterRepository.findByStoryIdAndDeletedFalseOrderByChapterNumberAsc(story.getId(), pageable);
         } else {
             chapters = chapterRepository.findByStoryIdAndDeletedFalseAndPublishedTrueOrderByChapterNumberAsc(story.getId(), pageable);

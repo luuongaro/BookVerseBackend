@@ -22,6 +22,8 @@ public interface StoryRepository extends JpaRepository<StoryEntity, Long> {
 
     Page<StoryEntity> findAllByDeletedFalseOrderByCreatedAtDesc(Pageable pageable);
 
+    Page<StoryEntity> findByAuthorIdNotAndDeletedFalseAndHiddenFalseOrderByCreatedAtDesc(Long authorId, Pageable pageable);
+
     Page<StoryEntity> findByAuthorIdAndDeletedFalseOrderByCreatedAtDesc(Long authorId, Pageable pageable);
 
     long countByAuthorIdAndDeletedFalse(Long authorId);

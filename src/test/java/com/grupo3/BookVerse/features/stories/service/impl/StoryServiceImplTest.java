@@ -119,6 +119,29 @@ class StoryServiceImplTest {
     }
 
     @Test
+    void exploreStories_UsesTheAuthenticatedAuthorAndPreservesPageTotals() {
+        Pageable pageable = PageRequest.of(1, 2);
+        when(storyRepository.findByAuthorIdNotAndDeletedFalseAndHiddenFalseOrderByCreatedAtDesc(user.getId(), pageable))
+                .thenReturn(new PageImpl<>(List.of(story), pageable, 3));
+        when(storyMapper.toResponseDto(story)).thenReturn(responseDto);
+
+        var result = storyService.getStoriesToExplore(pageable);
+
+        assertEquals(3, result.getTotalElements());
+        assertEquals(2, result.getTotalPages());
+        assertEquals(1, result.getNumber());
+        assertEquals(List.of(responseDto), result.getContent());
+        verify(storyRepository, never()).findAllByDeletedFalseOrderByCreatedAtDesc(any());
+    }
+
+    @Test
+    void exploreStories_RequiresAnAuthenticatedUser() {
+        SecurityContextHolder.clearContext();
+        assertThrows(AccessDeniedException.class, () -> storyService.getStoriesToExplore(PageRequest.of(0, 12)));
+        verifyNoInteractions(storyRepository);
+    }
+
+    @Test
     void createStory_ShouldCreateSuccessfully() {
 
         when(userRepository.findByIdExternal(userId))
