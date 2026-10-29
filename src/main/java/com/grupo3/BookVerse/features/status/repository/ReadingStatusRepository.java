@@ -16,10 +16,6 @@ public interface ReadingStatusRepository extends JpaRepository<ReadingStatusEnti
 
     List<ReadingStatusEntity> findByUserIdExternal(UUID userId);
 
-    List<ReadingStatusEntity> findByBookIdExternal(UUID bookId);
-
-    List<ReadingStatusEntity> findByStoryIdExternal(UUID storyId);
-
     List<ReadingStatusEntity> findByUserIdExternalInAndBookIdExternal(
             List<UUID> userIds,
             UUID bookId

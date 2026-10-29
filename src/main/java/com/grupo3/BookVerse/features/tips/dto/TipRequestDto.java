@@ -14,16 +14,13 @@ import java.util.UUID;
 @Builder
 public class TipRequestDto {
 
-    @NotNull(message = "Sender user id is required")
-    private UUID senderUserId;
-
-    @NotNull(message = "Receiver user id is required")
-    private UUID receiverUserId;
+    @NotNull(message = "Story id is required")
+    private UUID storyId;
 
     @NotNull(message = "Tip amount is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Tip amount must be greater than 0")
     private BigDecimal amount;
 
-    @Size(max = 255, message = "Tip message must not exceed 255 characters")
+    @Size(max = 250, message = "Tip message must not exceed 250 characters")
     private String message;
 }
