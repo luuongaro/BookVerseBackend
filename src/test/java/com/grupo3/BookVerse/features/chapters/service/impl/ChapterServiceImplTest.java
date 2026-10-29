@@ -53,6 +53,23 @@ class ChapterServiceImplTest {
 
     // verifies that the service correctly retrieves all non-deleted chapters and maps them to dtos
     @Test
+    void readingModeReturnsOnlyPublishedChaptersEvenForTheAuthor() {
+        var author = new UserEntity();
+        author.setId(1L);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(author, null, List.of()));
+        var storyId = UUID.randomUUID();
+        var story = StoryEntity.builder().id(2L).author(author).build();
+        var pageable = PageRequest.of(0, 20);
+        when(storyRepository.findByIdExternalAndDeletedFalse(storyId)).thenReturn(Optional.of(story));
+        when(chapterRepository.findByStoryIdAndDeletedFalseAndPublishedTrueOrderByChapterNumberAsc(2L, pageable))
+                .thenReturn(Page.empty(pageable));
+
+        assertTrue(chapterService.getChaptersByStoryId(storyId, pageable, true).isEmpty());
+        verify(chapterRepository, never()).findByStoryIdAndDeletedFalseOrderByChapterNumberAsc(any(), any());
+    }
+
+    @Test
     void shouldReturnAllChapters() {
 
         Pageable pageable = PageRequest.of(0, 10);

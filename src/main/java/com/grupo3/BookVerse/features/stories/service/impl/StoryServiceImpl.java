@@ -68,6 +68,15 @@ public class StoryServiceImpl implements StoryService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<StoryResponseDto> getStoriesToExplore(Pageable pageable) {
+        UserEntity reader = getAuthenticatedUser();
+        return storyRepository
+                .findByAuthorIdNotAndDeletedFalseAndHiddenFalseOrderByCreatedAtDesc(reader.getId(), pageable)
+                .map(storyMapper::toResponseDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public StoryDetailResponseDto getStoryByIdExternal(UUID idExternal) {
 
         StoryEntity story = findActiveStoryByIdExternal(idExternal);

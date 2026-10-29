@@ -48,6 +48,15 @@ public class StoryController {
         return ResponseEntity.ok(storyService.getAllStories(pageable));
     }
 
+    @GetMapping("/explore")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Explore stories by other authors",
+            description = "Returns active, visible stories excluding the authenticated author's own stories before pagination.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<Page<StoryResponseDto>> exploreStories(Pageable pageable) {
+        return ResponseEntity.ok(storyService.getStoriesToExplore(pageable));
+    }
+
     @GetMapping("/{idExternal}")
     @PreAuthorize("isAuthenticated()")
     @Operation(

@@ -18,6 +18,8 @@ public interface ChapterService {
 
     Page<ChapterResponseDto> getChaptersByStoryId(UUID storyId, Pageable pageable);
 
+    Page<ChapterResponseDto> getChaptersByStoryId(UUID storyId, Pageable pageable, boolean publishedOnly);
+
     ChapterResponseDto updateChapter(UUID idExternal, ChapterUpdateRequestDto chapterUpdateRequestDto);
 
     void deleteChapter(UUID idExternal);

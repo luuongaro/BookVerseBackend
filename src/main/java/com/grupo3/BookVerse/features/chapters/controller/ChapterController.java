@@ -117,10 +117,12 @@ public class ChapterController {
                     example = "550e8400-e29b-41d4-a716-446655440000"
             )
             @PathVariable UUID storyId,
+            @Parameter(description = "Return published chapters only, including for the author and moderators")
+            @RequestParam(defaultValue = "false") boolean publishedOnly,
             Pageable pageable
     ) {
         return ResponseEntity.ok(
-                chapterService.getChaptersByStoryId(storyId, pageable)
+                chapterService.getChaptersByStoryId(storyId, pageable, publishedOnly)
         );
     }
 
