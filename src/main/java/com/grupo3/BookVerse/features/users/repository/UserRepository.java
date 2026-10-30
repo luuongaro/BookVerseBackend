@@ -1,6 +1,10 @@
 package com.grupo3.BookVerse.features.users.repository;
 
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
+import com.grupo3.BookVerse.features.users.domain.UserStatus;
+import com.grupo3.BookVerse.features.users.dto.UserProfileResponseDto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,6 +15,18 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
     Optional<UserEntity> findByIdExternal(UUID idExternal);
+
+    Optional<UserEntity> findByIdExternalAndStatus(UUID idExternal, UserStatus status);
+
+    @Query("""
+            SELECT new com.grupo3.BookVerse.features.users.dto.UserProfileResponseDto(u.idExternal, u.username)
+            FROM UserEntity u
+            WHERE u.status = :status AND LOCATE(LOWER(:username), LOWER(u.username)) > 0
+            ORDER BY LOWER(u.username), u.id
+            """)
+    Page<UserProfileResponseDto> searchProfiles(@Param("username") String username,
+                                               @Param("status") UserStatus status,
+                                               Pageable pageable);
 
     boolean existsByEmail(String email);
 
