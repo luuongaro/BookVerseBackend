@@ -7,4 +7,6 @@ import java.util.UUID;
 public interface PaymentService {
 
     PaymentResponseDto getPaymentByIdExternal(UUID idExternal);
+
+//    void processMercadoPagoNotification(String providerPaymentId);
 }

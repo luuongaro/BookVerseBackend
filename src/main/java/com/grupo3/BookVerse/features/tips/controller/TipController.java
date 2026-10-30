@@ -1,5 +1,6 @@
 package com.grupo3.BookVerse.features.tips.controller;
 
+import com.grupo3.BookVerse.features.tips.dto.TipCheckoutResponseDto;
 import com.grupo3.BookVerse.features.tips.dto.TipRequestDto;
 import com.grupo3.BookVerse.features.tips.dto.TipResponseDto;
 import com.grupo3.BookVerse.features.tips.service.TipService;
@@ -59,10 +60,10 @@ public class TipController {
                     content = @Content
             )
     })
-    public ResponseEntity<TipResponseDto> createTip(
+    public ResponseEntity<TipCheckoutResponseDto> createTip(
             @Valid @RequestBody TipRequestDto tipRequestDto
     ) {
-        TipResponseDto createdTip =
+        TipCheckoutResponseDto createdTip =
                 tipService.createTip(tipRequestDto);
 
         return ResponseEntity

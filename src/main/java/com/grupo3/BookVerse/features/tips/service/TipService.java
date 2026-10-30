@@ -1,5 +1,6 @@
 package com.grupo3.BookVerse.features.tips.service;
 
+import com.grupo3.BookVerse.features.tips.dto.TipCheckoutResponseDto;
 import com.grupo3.BookVerse.features.tips.dto.TipRequestDto;
 import com.grupo3.BookVerse.features.tips.dto.TipResponseDto;
 
@@ -8,7 +9,7 @@ import java.util.UUID;
 
 public interface TipService {
 
-    TipResponseDto createTip(TipRequestDto tipRequestDto);
+    TipCheckoutResponseDto createTip(TipRequestDto tipRequestDto);
 
     List<TipResponseDto> getAllTips();
 

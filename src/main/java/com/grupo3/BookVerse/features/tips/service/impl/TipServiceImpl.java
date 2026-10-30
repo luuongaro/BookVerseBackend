@@ -5,10 +5,13 @@ import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
 import com.grupo3.BookVerse.features.payments.domain.PaymentEntity;
 import com.grupo3.BookVerse.features.payments.domain.PaymentStatus;
 import com.grupo3.BookVerse.features.payments.domain.PaymentType;
+import com.grupo3.BookVerse.features.payments.dto.MercadoPagoCheckoutResponseDto;
 import com.grupo3.BookVerse.features.payments.repository.PaymentRepository;
+import com.grupo3.BookVerse.features.payments.service.MercadoPagoService;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.tips.domain.TipEntity;
+import com.grupo3.BookVerse.features.tips.dto.TipCheckoutResponseDto;
 import com.grupo3.BookVerse.features.tips.dto.TipRequestDto;
 import com.grupo3.BookVerse.features.tips.dto.TipResponseDto;
 import com.grupo3.BookVerse.features.tips.mappers.TipMapper;
@@ -33,10 +36,11 @@ public class TipServiceImpl implements TipService {
     private final TipMapper tipMapper;
     private final StoryRepository storyRepository;
     private final PaymentRepository paymentRepository;
+    private final MercadoPagoService mercadoPagoService;
 
     @Override
     @Transactional
-    public TipResponseDto createTip(TipRequestDto tipRequestDto) {
+    public TipCheckoutResponseDto createTip(TipRequestDto tipRequestDto) {
         UserEntity sender = getAuthenticatedUser();
 
         StoryEntity story = findActiveStoryByIdExternal(
@@ -69,8 +73,19 @@ public class TipServiceImpl implements TipService {
 
         TipEntity savedTip = tipRepository.save(tip);
 
-        return tipMapper.toResponseDto(savedTip);
+        MercadoPagoCheckoutResponseDto checkout =
+                mercadoPagoService.createCheckout(
+                        "Tip - " + story.getTitle(),
+                        savedPayment.getAmount(),
+                        savedPayment.getIdExternal()
+                );
+
+        return TipCheckoutResponseDto.builder()
+                .tip(tipMapper.toResponseDto(savedTip))
+                .checkout(checkout)
+                .build();
     }
+
 
     @Override
     @Transactional(readOnly = true)
