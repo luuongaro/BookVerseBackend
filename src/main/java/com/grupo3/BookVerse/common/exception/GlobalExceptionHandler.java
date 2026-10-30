@@ -92,6 +92,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
 
+    @ExceptionHandler(PaymentProviderException.class)
+    public ResponseEntity<ApiErrorResponse> handlePaymentProviderException(PaymentProviderException ex) {
+        ApiErrorResponse errorResponse = ApiErrorResponse.builder()
+                .message(ex.getMessage())
+                .status(HttpStatus.BAD_GATEWAY.value())
+                .error(HttpStatus.BAD_GATEWAY.getReasonPhrase())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_GATEWAY);
+    }
+
     // Handles unexpected exceptions not covered by specific handlers
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneralException(Exception ex) {
@@ -104,4 +116,23 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler(InvalidWebhookSignatureException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidWebhookSignatureException(
+            InvalidWebhookSignatureException ex
+    ) {
+        ApiErrorResponse errorResponse = ApiErrorResponse.builder()
+                .message(ex.getMessage())
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .error(HttpStatus.UNAUTHORIZED.getReasonPhrase())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return new ResponseEntity<>(
+                errorResponse,
+                HttpStatus.UNAUTHORIZED
+        );
+    }
+
+
 }

@@ -80,6 +80,7 @@ public class PaymentEntity {
 
     @PrePersist
     protected void onCreate() {
+        validateAmount();
         if (idExternal == null) {
             idExternal = UUID.randomUUID();
         }
