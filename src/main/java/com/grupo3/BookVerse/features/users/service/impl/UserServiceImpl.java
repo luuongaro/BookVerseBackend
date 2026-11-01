@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -45,7 +46,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponseDto createUser(UserRequestDto dto) {
-        if (userRepository.existsByEmail(dto.email())) {
+        if (userRepository.existsByEmailIgnoreCase(dto.email().trim())) {
             throw new DuplicateResourceException("Email is already in use");
         }
 
@@ -64,6 +65,7 @@ public class UserServiceImpl implements UserService {
                 );
 
         UserEntity user = userMapper.toEntity(dto);
+        user.setEmail(normalizeEmail(dto.email()));
         user.setPasswordHash(passwordEncoder.encode(dto.password()));
         user.setSubscription(subscription);
         user.getRoles().add(defaultRole);
@@ -100,7 +102,7 @@ public class UserServiceImpl implements UserService {
 
         if ((existing.getEmail() == null
                 || !existing.getEmail().equalsIgnoreCase(dto.email()))
-                && userRepository.existsByEmail(dto.email())) {
+                && userRepository.existsByEmailIgnoreCase(dto.email().trim())) {
             throw new DuplicateResourceException("Email is already in use");
         }
 
@@ -111,6 +113,7 @@ public class UserServiceImpl implements UserService {
         }
 
         userMapper.updateEntityFromDto(dto, existing);
+        existing.setEmail(normalizeEmail(dto.email()));
 
         UserEntity updated = userRepository.save(existing);
         return userMapper.toResponseDto(updated);
@@ -178,6 +181,10 @@ public class UserServiceImpl implements UserService {
 
         targetUser.setStatus(UserStatus.INACTIVE);
         userRepository.save(targetUser);
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private UserEntity findUserByIdExternal(UUID idExternal) {

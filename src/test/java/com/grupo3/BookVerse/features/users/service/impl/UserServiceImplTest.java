@@ -101,7 +101,7 @@ class UserServiceImplTest {
                 List.of("ROLE_USER")
         );
 
-        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase(request.email().trim())).thenReturn(false);
         when(userRepository.existsByUsername(request.username())).thenReturn(false);
         when(subscriptionRepository.findByIdExternal(subscriptionId)).thenReturn(Optional.of(subscription));
         when(roleRepository.findByNameIgnoreCase("ROLE_USER")).thenReturn(Optional.of(defaultRole));
@@ -129,7 +129,7 @@ class UserServiceImplTest {
     void shouldThrowExceptionWhenEmailAlreadyExists() {
         UserRequestDto request = buildUserRequest();
 
-        when(userRepository.existsByEmail(request.email())).thenReturn(true);
+        when(userRepository.existsByEmailIgnoreCase(request.email().trim())).thenReturn(true);
 
         assertThrows(
                 DuplicateResourceException.class,
@@ -143,7 +143,7 @@ class UserServiceImplTest {
     void shouldThrowExceptionWhenUsernameAlreadyExists() {
         UserRequestDto request = buildUserRequest();
 
-        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase(request.email().trim())).thenReturn(false);
         when(userRepository.existsByUsername(request.username())).thenReturn(true);
 
         assertThrows(
@@ -165,7 +165,7 @@ class UserServiceImplTest {
                 subscriptionId
         );
 
-        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase(request.email().trim())).thenReturn(false);
         when(userRepository.existsByUsername(request.username())).thenReturn(false);
         when(subscriptionRepository.findByIdExternal(subscriptionId)).thenReturn(Optional.empty());
 
@@ -193,7 +193,7 @@ class UserServiceImplTest {
                 .idExternal(subscriptionId)
                 .build();
 
-        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase(request.email().trim())).thenReturn(false);
         when(userRepository.existsByUsername(request.username())).thenReturn(false);
         when(subscriptionRepository.findByIdExternal(subscriptionId)).thenReturn(Optional.of(subscription));
         when(roleRepository.findByNameIgnoreCase("ROLE_USER")).thenReturn(Optional.empty());
@@ -323,7 +323,7 @@ class UserServiceImplTest {
         authenticateAs(existingUser);
 
         when(userRepository.findByIdExternal(idExternal)).thenReturn(Optional.of(existingUser));
-        when(userRepository.existsByEmail(request.email())).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase(request.email().trim())).thenReturn(false);
         when(userRepository.existsByUsername(request.username())).thenReturn(false);
         doAnswer(invocation -> {
             UserUpdateRequestDto dto = invocation.getArgument(0);
