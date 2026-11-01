@@ -90,11 +90,6 @@ public class ReviewReportServiceImpl implements ReviewReportService {
         ReviewReportEntity report = findPendingReportByIdExternal(reportId);
         UserEntity moderator = getAuthenticatedUser();
 
-        report.setModeratorUser(moderator);
-        report.setStatus(ReviewReportStatus.APPROVED);
-        report.setResolutionComment(dto.resolutionComment());
-        report.setResolvedAt(LocalDateTime.now());
-
         ReviewEntity review = report.getReview();
         review.setTakedownStatus(ReviewTakedownStatus.TAKEN_DOWN);
         review.setTakedownAt(LocalDateTime.now());
@@ -107,10 +102,14 @@ public class ReviewReportServiceImpl implements ReviewReportService {
 
         reviewRepository.save(review);
 
-        ReviewReportEntity updated =
-                reviewReportRepository.save(report);
+        resolvePendingReportsForReview(
+                report.getReview().getId(),
+                moderator,
+                ReviewReportStatus.APPROVED,
+                dto.resolutionComment()
+        );
 
-        return reviewReportMapper.toResponseDto(updated);
+        return reviewReportMapper.toResponseDto(report);
     }
 
     @Override
@@ -122,13 +121,14 @@ public class ReviewReportServiceImpl implements ReviewReportService {
         ReviewReportEntity report = findPendingReportByIdExternal(reportId);
         UserEntity moderator = getAuthenticatedUser();
 
-        report.setModeratorUser(moderator);
-        report.setStatus(ReviewReportStatus.REJECTED);
-        report.setResolutionComment(dto.resolutionComment());
-        report.setResolvedAt(LocalDateTime.now());
+        resolvePendingReportsForReview(
+                report.getReview().getId(),
+                moderator,
+                ReviewReportStatus.REJECTED,
+                dto.resolutionComment()
+        );
 
-        ReviewReportEntity updated = reviewReportRepository.save(report);
-        return reviewReportMapper.toResponseDto(updated);
+        return reviewReportMapper.toResponseDto(report);
     }
 
     @Override
@@ -145,6 +145,30 @@ public class ReviewReportServiceImpl implements ReviewReportService {
         review.setTakedownReason(null);
 
         reviewRepository.save(review);
+    }
+
+    private void resolvePendingReportsForReview(
+            Long reviewId,
+            UserEntity moderator,
+            ReviewReportStatus resolutionStatus,
+            String resolutionComment
+    ) {
+        List<ReviewReportEntity> pendingReports =
+                reviewReportRepository.findAllByReviewIdAndStatus(
+                        reviewId,
+                        ReviewReportStatus.PENDING
+                );
+
+        LocalDateTime resolvedAt = LocalDateTime.now();
+
+        for (ReviewReportEntity pendingReport : pendingReports) {
+            pendingReport.setModeratorUser(moderator);
+            pendingReport.setStatus(resolutionStatus);
+            pendingReport.setResolutionComment(resolutionComment);
+            pendingReport.setResolvedAt(resolvedAt);
+        }
+
+        reviewReportRepository.saveAll(pendingReports);
     }
 
     private ReviewReportEntity findReportByIdExternal(UUID reportId) {
