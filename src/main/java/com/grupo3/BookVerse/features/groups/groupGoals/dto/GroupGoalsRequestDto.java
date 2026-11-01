@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.UUID;
 
 public record GroupGoalsRequestDto(
@@ -22,7 +22,7 @@ public record GroupGoalsRequestDto(
 
         @NotNull(message = "targetDate cannot be null")
         @Future(message = "targetDate must be a future date")
-        LocalDateTime targetDate
+        LocalDate targetDate
 
 ) {
 }

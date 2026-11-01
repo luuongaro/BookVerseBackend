@@ -4,6 +4,7 @@ import com.grupo3.BookVerse.features.groups.groupGoals.domain.GoalStatus;
 import com.grupo3.BookVerse.features.groups.groupGoals.domain.GoalType;
 
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,7 +20,7 @@ public record GroupGoalsResponseDto(
 
         Integer targetProgress,
 
-        LocalDateTime targetDate,
+        LocalDate targetDate,
 
         LocalDateTime updatedAt
 

@@ -172,11 +172,13 @@ public class GroupProgressServiceImpl implements GroupProgressService {
             );
         }
 
-        if (group.getStory().getChapters() == null || group.getStory().getChapters().isEmpty()) {
+        if (group.getStory().getChapters() == null) {
             return 0;
         }
 
-        return group.getStory().getChapters().size();
+        return (int) group.getStory().getChapters().stream()
+                .filter(chapter -> chapter.isPublished() && !chapter.isDeleted())
+                .count();
     }
 
     private GroupProgressResponseDto buildResponse(
@@ -252,4 +254,3 @@ public class GroupProgressServiceImpl implements GroupProgressService {
         return user;
     }
 }
-

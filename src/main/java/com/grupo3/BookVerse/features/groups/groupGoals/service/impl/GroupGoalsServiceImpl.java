@@ -151,20 +151,23 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
             );
         }
 
-        if (group.getStory() != null && requestDto.goalType() == GoalType.CHAPTER) {
-            int totalChapters = group.getStory().getChapters() != null
-                    ? group.getStory().getChapters().size()
-                    : 0;
+        if (group.getStory() != null) {
+            int publishedChapters = group.getStory().getChapters() == null
+                    ? 0
+                    : (int) group.getStory().getChapters().stream()
+                    .filter(chapter -> chapter.isPublished() && !chapter.isDeleted())
+                    .count();
 
-            if (totalChapters == 0) {
+            if (publishedChapters == 0) {
                 throw new BadRequestException(
-                        "Cannot define CHAPTER goals for a story without chapters"
+                        "Cannot create a goal for a story without published chapters"
                 );
             }
 
-            if (requestDto.targetProgress() > totalChapters) {
+            if (requestDto.goalType() == GoalType.CHAPTER
+                    && requestDto.targetProgress() > publishedChapters) {
                 throw new BadRequestException(
-                        "Chapter target progress cannot exceed the total number of story chapters"
+                        "Chapter target cannot exceed the number of published story chapters"
                 );
             }
         }
