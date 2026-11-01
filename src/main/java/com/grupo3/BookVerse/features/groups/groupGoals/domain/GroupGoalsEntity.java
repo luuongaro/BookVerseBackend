@@ -4,6 +4,7 @@ import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEnt
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -40,7 +41,7 @@ public class GroupGoalsEntity {
     private Integer targetProgress;
 
     @Column(name = "target_date")
-    private LocalDateTime targetDate;
+    private LocalDate targetDate;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
