@@ -18,6 +18,11 @@ public interface ReviewReportRepository extends JpaRepository<ReviewReportEntity
 
     List<ReviewReportEntity> findByStatusOrderByCreatedAtDesc(ReviewReportStatus status);
 
+    List<ReviewReportEntity> findAllByReviewIdAndStatus(
+            Long reviewId,
+            ReviewReportStatus status
+    );
+
     boolean existsByReviewIdAndReporterUserIdAndStatus(
             Long reviewId,
             Long reporterUserId,
