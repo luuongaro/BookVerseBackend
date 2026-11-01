@@ -105,6 +105,12 @@ public class StoryServiceImpl implements StoryService {
                         )
                         .toList();
 
+        int publishedChaptersCount = story.getChapters() == null
+                ? 0
+                : (int) story.getChapters().stream()
+                .filter(chapter -> chapter.isPublished() && !chapter.isDeleted())
+                .count();
+
         return StoryDetailResponseDto.builder()
                 .idExternal(story.getIdExternal())
                 .authorId(story.getAuthor().getIdExternal())
@@ -116,6 +122,7 @@ public class StoryServiceImpl implements StoryService {
                 .createdAt(story.getCreatedAt())
                 .updatedAt(story.getUpdatedAt())
                 .chaptersCount(visibleChapters.size())
+                .publishedChaptersCount(publishedChaptersCount)
                 .chapters(chapterMapper.toSummaryDtoList(visibleChapters))
                 .build();
     }

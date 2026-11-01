@@ -27,6 +27,7 @@ public class StoryDetailResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Integer chaptersCount;
+    private Integer publishedChaptersCount;
     private List<ChapterSummaryDto> chapters;
 
 }
