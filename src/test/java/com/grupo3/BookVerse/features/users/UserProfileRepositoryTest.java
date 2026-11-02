@@ -11,6 +11,10 @@ import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import com.grupo3.BookVerse.features.users.service.UserProfileService;
 import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,6 +35,8 @@ class UserProfileRepositoryTest {
     @Autowired EntityManagerFactory factory;
     @Autowired UserRepository users;
     @Autowired StoryRepository stories;
+
+    @AfterEach void cleanup() { SecurityContextHolder.clearContext(); }
 
     @Test
     void searchesActiveUsernamesBeforePaginationAndHidesUnavailableProfilesAndStories() {
@@ -60,13 +66,23 @@ class UserProfileRepositoryTest {
         em.close();
 
         var service = new UserProfileService(users, stories);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(river, null, river.getAuthorities()));
         var first = service.search(" @sArAh ", PageRequest.of(0, 1));
         var second = service.search("sarah", PageRequest.of(1, 1));
         assertEquals(2, first.getTotalElements());
         assertEquals(2, first.getTotalPages());
         assertEquals("Sarah", first.getContent().getFirst().username());
         assertEquals("sarah_notes", second.getContent().getFirst().username());
-        assertEquals(3, service.search("", PageRequest.of(0, 1)).getTotalElements());
+        assertEquals(2, service.search("", PageRequest.of(0, 1)).getTotalElements());
+        assertTrue(service.search("@River", PageRequest.of(0, 12)).isEmpty());
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(sarah, null, sarah.getAuthorities()));
+        var withoutSelf = service.search("sarah", PageRequest.of(0, 1));
+        assertEquals(1, withoutSelf.getTotalElements());
+        assertEquals(1, withoutSelf.getTotalPages());
+        assertEquals("sarah_notes", withoutSelf.getContent().getFirst().username());
+        assertTrue(service.search("sarah", PageRequest.of(1, 1)).isEmpty());
         assertEquals(0, service.search("%", PageRequest.of(0, 12)).getTotalElements());
         assertEquals("Sarah", service.getProfile(sarah.getIdExternal()).username());
         for (var unavailable : new UserEntity[]{inactive, suspended, banned}) {
@@ -79,6 +95,12 @@ class UserProfileRepositoryTest {
         assertEquals(2, visibleStories.getTotalPages());
         assertTrue(visibleStories.getContent().getFirst().title().matches("Story [01]"));
         assertNotEquals(visibleStories.getContent().getFirst().idExternal(), lastStories.getContent().getFirst().idExternal());
+    }
+
+    @Test void searchRequiresAnAuthenticatedPrincipal() {
+        SecurityContextHolder.clearContext();
+        var service = new UserProfileService(users, stories);
+        assertThrows(AccessDeniedException.class, () -> service.search("Sarah", PageRequest.of(0, 12)));
     }
 
     private UserEntity user(String username, SubscriptionEntity plan) {

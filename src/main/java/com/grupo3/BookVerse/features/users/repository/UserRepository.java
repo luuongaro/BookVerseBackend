@@ -19,13 +19,16 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByIdExternalAndStatus(UUID idExternal, UserStatus status);
 
     @Query("""
-            SELECT new com.grupo3.BookVerse.features.users.dto.UserProfileResponseDto(u.idExternal, u.username)
+            SELECT new com.grupo3.BookVerse.features.users.dto.UserProfileResponseDto(u.idExternal, u.username, COALESCE(a.avatarIndex, 0))
             FROM UserEntity u
-            WHERE u.status = :status AND LOCATE(LOWER(:username), LOWER(u.username)) > 0
+            LEFT JOIN ProfileAppearanceEntity a ON a.user.id = u.id
+            WHERE u.status = :status AND u.idExternal <> :viewerId
+              AND LOCATE(LOWER(:username), LOWER(u.username)) > 0
             ORDER BY LOWER(u.username), u.id
             """)
     Page<UserProfileResponseDto> searchProfiles(@Param("username") String username,
                                                @Param("status") UserStatus status,
+                                               @Param("viewerId") UUID viewerId,
                                                Pageable pageable);
 
     boolean existsByEmail(String email);

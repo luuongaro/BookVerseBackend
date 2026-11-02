@@ -30,6 +30,15 @@ public interface StoryRepository extends JpaRepository<StoryEntity, Long> {
 
     long countByAuthorIdAndDeletedFalse(Long authorId);
 
+    @Query("""
+            SELECT s FROM StoryEntity s
+            WHERE s.author.idExternal = :authorId AND s.deleted = false AND s.hidden = false
+              AND EXISTS (SELECT c.id FROM ChapterEntity c
+                          WHERE c.story = s AND c.published = true AND c.deleted = false)
+            ORDER BY s.createdAt DESC, s.id DESC
+            """)
+    java.util.List<StoryEntity> findPublishedForAuthor(@Param("authorId") UUID authorId, Pageable pageable);
+
     @Modifying(
             flushAutomatically = true,
             clearAutomatically = true

@@ -12,6 +12,8 @@ import java.util.UUID;
 
 public interface ReadingStatusRepository extends JpaRepository<ReadingStatusEntity, Long> {
 
+    long countByUserIdAndStatusIn(Long userId, List<ReadingStatusEnum> statuses);
+
     Optional<ReadingStatusEntity> findByIdExternal(UUID idExternal);
 
     List<ReadingStatusEntity> findByUserIdExternal(UUID userId);
