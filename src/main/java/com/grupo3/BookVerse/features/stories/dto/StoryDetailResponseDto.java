@@ -19,6 +19,7 @@ public class StoryDetailResponseDto {
 
     private UUID idExternal;
     private UUID authorId;
+    private String authorUsername;
     private String title;
     private String description;
     private StoryAccessType accessType;
