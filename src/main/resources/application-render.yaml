@@ -1,0 +1,24 @@
+server:
+  address: 0.0.0.0
+  port: ${PORT:10000}
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+  mail:
+    properties:
+      mail:
+        smtp:
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://www.bookverse.com.ar,https://bookverse.com.ar}
