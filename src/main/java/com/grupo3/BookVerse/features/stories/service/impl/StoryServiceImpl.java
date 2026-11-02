@@ -114,6 +114,7 @@ public class StoryServiceImpl implements StoryService {
         return StoryDetailResponseDto.builder()
                 .idExternal(story.getIdExternal())
                 .authorId(story.getAuthor().getIdExternal())
+                .authorUsername(story.getAuthor().getProfileUsername())
                 .title(story.getTitle())
                 .description(story.getDescription())
                 .accessType(story.getAccessType())
