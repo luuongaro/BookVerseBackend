@@ -1,6 +1,7 @@
 package com.grupo3.BookVerse.features.groups.groupMember.service.impl;
 
 import com.grupo3.BookVerse.common.exception.DuplicateResourceException;
+import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
@@ -48,8 +49,12 @@ public class GroupMemberServiceImpl implements GroupMemberService {
 
         validateCanManageMembers(groupId, authenticatedUser);
 
-        String email = requestDto.getEmail().trim();
-        UserEntity targetUser = findUserByEmail(email);
+        if (requestDto == null || !requestDto.isTargetValid()) {
+            throw new BadRequestException("Specify either a userId or an email");
+        }
+        UserEntity targetUser = requestDto.getUserId() != null
+                ? findUserByIdExternal(requestDto.getUserId())
+                : findUserByEmail(requestDto.getEmail().trim());
 
         if (targetUser.getStatus() != UserStatus.ACTIVE) {
             throw new AccessDeniedException(

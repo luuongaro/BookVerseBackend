@@ -35,7 +35,7 @@ public class GroupMemberController {
     @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "Add a user to a reading group",
-            description = "Adds a user to a reading group using the target user's email address.",
+            description = "Adds a user selected from community profiles using userId. Email remains supported; provide exactly one identifier.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
