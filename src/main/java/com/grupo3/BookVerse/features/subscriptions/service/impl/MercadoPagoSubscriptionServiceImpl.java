@@ -60,9 +60,16 @@ public class MercadoPagoSubscriptionServiceImpl
                     subscription.getInitPoint()
             );
 
-        } catch (MPApiException | MPException ex) {
+        } catch (MPApiException ex) {
             throw new PaymentProviderException(
-                    "Error creating Mercado Pago premium subscription",
+                    "Error creating Mercado Pago premium subscription: "
+                            + ex.getApiResponse().getContent(),
+                    ex
+            );
+
+        } catch (MPException ex) {
+            throw new PaymentProviderException(
+                    "Error communicating with Mercado Pago premium subscription service",
                     ex
             );
         }
