@@ -1,7 +1,9 @@
 package com.grupo3.BookVerse.features.subscriptions.controller;
 
+import com.grupo3.BookVerse.features.subscriptions.dto.PremiumSubscriptionCheckoutResponseDto;
 import com.grupo3.BookVerse.features.subscriptions.dto.SubscriptionChangeRequestDto;
 import com.grupo3.BookVerse.features.subscriptions.dto.SubscriptionResponseDto;
+import com.grupo3.BookVerse.features.subscriptions.dto.UserSubscriptionResponseDto;
 import com.grupo3.BookVerse.features.subscriptions.service.SubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,6 +14,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -71,17 +74,45 @@ public class SubscriptionController {
     @PostMapping("/upgrade-to-premium")
     @PreAuthorize("isAuthenticated()")
     @Operation(
-            summary = "Upgrade authenticated user to premium",
-            description = "Simulates a successful subscription upgrade and assigns the PREMIUM plan to the authenticated user.",
+            summary = "Start monthly PREMIUM subscription",
+            description = "Creates a pending monthly PREMIUM subscription in Mercado Pago and returns the checkout URL.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "User upgraded to premium successfully"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Premium subscription not found", content = @Content)
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Monthly PREMIUM subscription checkout created successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "User already has a PREMIUM, active or pending subscription",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "PREMIUM subscription plan not found",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "502",
+                    description = "Error communicating with Mercado Pago",
+                    content = @Content
+            )
     })
-    public ResponseEntity<SubscriptionResponseDto> upgradeToPremium() {
-        return ResponseEntity.ok(subscriptionService.upgradeAuthenticatedUserToPremium());
+    public ResponseEntity<PremiumSubscriptionCheckoutResponseDto>
+    upgradeToPremium() {
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(
+                        subscriptionService
+                                .initiateAuthenticatedUserPremiumSubscription()
+                );
     }
 
     @GetMapping("/me")
@@ -156,5 +187,47 @@ public class SubscriptionController {
             @Valid
             @RequestBody SubscriptionChangeRequestDto request) {
         return ResponseEntity.ok(subscriptionService.changeUserSubscription(userIdExternal, request.getType()));
+    }
+
+    @PostMapping("/premium/synchronize")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Synchronize PREMIUM subscription",
+            description = "Retrieves the authenticated user's Mercado Pago subscription and synchronizes the subscription status and BookVerse plan.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "PREMIUM subscription synchronized successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Subscription does not contain valid provider information",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User subscription or BookVerse plan not found",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "502",
+                    description = "Error communicating with Mercado Pago",
+                    content = @Content
+            )
+    })
+    public ResponseEntity<UserSubscriptionResponseDto>
+    synchronizePremiumSubscription() {
+
+        return ResponseEntity.ok(
+                subscriptionService
+                        .synchronizeAuthenticatedUserPremiumSubscription()
+        );
     }
 }

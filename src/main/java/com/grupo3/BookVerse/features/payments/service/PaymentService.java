@@ -8,5 +8,5 @@ public interface PaymentService {
 
     PaymentResponseDto getPaymentByIdExternal(UUID idExternal);
 
-//    void processMercadoPagoNotification(String providerPaymentId);
+    void processMercadoPagoNotification(String providerPaymentId);
 }
