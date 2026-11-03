@@ -58,3 +58,4 @@ bookverse:
   premium:
     price: ${BOOKVERSE_PREMIUM_PRICE}
     back-url: ${BOOKVERSE_PREMIUM_BACK_URL}
+    test-payer-email: ${MERCADO_PAGO_TEST_PAYER_EMAIL:}

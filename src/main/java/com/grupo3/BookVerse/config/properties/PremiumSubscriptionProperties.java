@@ -15,4 +15,5 @@ public class PremiumSubscriptionProperties {
 
     private BigDecimal price;
     private String backUrl;
+    private String testPayerEmail;
 }

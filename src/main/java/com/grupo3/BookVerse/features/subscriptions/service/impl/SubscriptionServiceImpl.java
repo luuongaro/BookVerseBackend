@@ -88,9 +88,15 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         UserSubscriptionEntity savedUserSubscription =
                 userSubscriptionRepository.save(userSubscription);
 
+        String payerEmail =
+                premiumProperties.getTestPayerEmail() != null
+                        && !premiumProperties.getTestPayerEmail().isBlank()
+                        ? premiumProperties.getTestPayerEmail()
+                        : authenticatedUser.getEmail();
+
         MercadoPagoSubscriptionResponseDto mercadoPagoSubscription =
                 mercadoPagoSubscriptionService.createMonthlySubscription(
-                        authenticatedUser.getEmail(),
+                        payerEmail,
                         premiumProperties.getPrice(),
                         savedUserSubscription.getIdExternal()
                 );
