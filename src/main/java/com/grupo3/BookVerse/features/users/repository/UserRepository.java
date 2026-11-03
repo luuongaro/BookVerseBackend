@@ -37,6 +37,8 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
     boolean existsByUsername(String username);
 
+    boolean existsByUsernameIgnoreCase(String username);
+
     @Query("""
             SELECT u
             FROM UserEntity u
