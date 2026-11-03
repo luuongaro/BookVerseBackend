@@ -54,7 +54,7 @@ public class UserServiceImpl implements UserService {
             throw new DuplicateResourceException("Email is already in use");
         }
 
-        if (userRepository.existsByUsername(dto.username())) {
+        if (userRepository.existsByUsernameIgnoreCase(dto.username().trim())) {
             throw new DuplicateResourceException("Username is already in use");
         }
 
@@ -69,6 +69,7 @@ public class UserServiceImpl implements UserService {
                 );
 
         UserEntity user = userMapper.toEntity(dto);
+        user.setUsername(dto.username().trim());
         user.setEmail(normalizeEmail(dto.email()));
         user.setPasswordHash(passwordEncoder.encode(dto.password()));
         user.setSubscription(subscription);
@@ -121,11 +122,12 @@ public class UserServiceImpl implements UserService {
 
         if ((existing.getProfileUsername() == null
                 || !existing.getProfileUsername().equalsIgnoreCase(dto.username()))
-                && userRepository.existsByUsername(dto.username())) {
+                && userRepository.existsByUsernameIgnoreCase(dto.username().trim())) {
             throw new DuplicateResourceException("Username is already in use");
         }
 
         userMapper.updateEntityFromDto(dto, existing);
+        existing.setUsername(dto.username().trim());
         existing.setEmail(normalizeEmail(dto.email()));
 
         UserEntity updated = userRepository.save(existing);
