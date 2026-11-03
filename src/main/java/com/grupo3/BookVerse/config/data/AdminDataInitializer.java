@@ -47,27 +47,76 @@ public class AdminDataInitializer implements CommandLineRunner {
     }
 
     private void createAdminIfNotExists() {
-        boolean exists = userRepository.existsByEmail(adminEmail);
+        RoleEntity adminRole =
+                roleRepository.findByNameIgnoreCase(ADMIN_ROLE)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Role not found: " + ADMIN_ROLE
+                                )
+                        );
 
-        if (exists) {
-            log.info("Admin user already exists with email: {}", adminEmail);
+        UserEntity existingAdmin =
+                userRepository.findByEmailWithRoles(adminEmail)
+                        .orElse(null);
+
+        if (existingAdmin != null) {
+            boolean changed = false;
+
+            boolean hasAdminRole =
+                    existingAdmin.getRoles().stream()
+                            .anyMatch(role ->
+                                    ADMIN_ROLE.equalsIgnoreCase(
+                                            role.getName()
+                                    )
+                            );
+
+            if (!hasAdminRole) {
+                existingAdmin.getRoles().add(adminRole);
+                changed = true;
+
+                log.warn(
+                        "ROLE_ADMIN restored for protected administrator: {}",
+                        adminEmail
+                );
+            }
+
+            if (existingAdmin.getStatus() != UserStatus.ACTIVE) {
+                existingAdmin.setStatus(UserStatus.ACTIVE);
+                changed = true;
+
+                log.warn(
+                        "ACTIVE status restored for protected administrator: {}",
+                        adminEmail
+                );
+            }
+
+            if (changed) {
+                userRepository.save(existingAdmin);
+            } else {
+                log.info(
+                        "Protected administrator already configured correctly: {}",
+                        adminEmail
+                );
+            }
+
             return;
         }
 
-        RoleEntity adminRole = roleRepository.findByNameIgnoreCase(ADMIN_ROLE)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Role not found: " + ADMIN_ROLE)
-                );
-
-        SubscriptionEntity adminSubscription = subscriptionRepository.findByType(SubscriptionType.PREMIUM)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Subscription not found: PREMIUM")
-                );
+        SubscriptionEntity adminSubscription =
+                subscriptionRepository
+                        .findByType(SubscriptionType.PREMIUM)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Subscription not found: PREMIUM"
+                                )
+                        );
 
         UserEntity adminUser = UserEntity.builder()
                 .username(adminUsername)
-                .email(adminEmail)
-                .passwordHash(passwordEncoder.encode(adminPassword))
+                .email(adminEmail.trim().toLowerCase())
+                .passwordHash(
+                        passwordEncoder.encode(adminPassword)
+                )
                 .subscription(adminSubscription)
                 .status(UserStatus.ACTIVE)
                 .build();
@@ -76,6 +125,9 @@ public class AdminDataInitializer implements CommandLineRunner {
 
         userRepository.save(adminUser);
 
-        log.info("Default admin user created with email: {}", adminEmail);
+        log.info(
+                "Protected administrator created with email: {}",
+                adminEmail
+        );
     }
 }

@@ -17,6 +17,7 @@ import com.grupo3.BookVerse.features.users.mappers.UserMapper;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import com.grupo3.BookVerse.features.users.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,6 +37,9 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private static final String DEFAULT_ROLE = "ROLE_USER";
+
+    @Value("${app.admin.email}")
+    private String protectedAdminEmail;
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
@@ -100,6 +104,15 @@ public class UserServiceImpl implements UserService {
 
         validateCanUpdateUser(existing, authenticatedUser);
 
+        if (isProtectedAdmin(existing)
+                && !existing.getEmail().equalsIgnoreCase(
+                dto.email().trim()
+        )) {
+            throw new BadRequestException(
+                    "The protected administrator email cannot be changed"
+            );
+        }
+
         if ((existing.getEmail() == null
                 || !existing.getEmail().equalsIgnoreCase(dto.email()))
                 && userRepository.existsByEmailIgnoreCase(dto.email().trim())) {
@@ -157,6 +170,13 @@ public class UserServiceImpl implements UserService {
                         "ROLE_ADMIN".equalsIgnoreCase(role.getName())
                 );
 
+        if (isProtectedAdmin(targetUser)
+                && !adminRoleRetained) {
+            throw new BadRequestException(
+                    "The protected administrator must always retain ROLE_ADMIN"
+            );
+        }
+
         if (targetIsAdmin
                 && !adminRoleRetained
                 && Objects.equals(targetUser.getId(), authenticatedUser.getId())) {
@@ -177,7 +197,10 @@ public class UserServiceImpl implements UserService {
         UserEntity targetUser = findUserByIdExternal(idExternal);
         UserEntity authenticatedUser = getAuthenticatedUser();
 
-        validateCanDeleteUser(authenticatedUser);
+        validateCanDeleteUser(
+                targetUser,
+                authenticatedUser
+        );
 
         targetUser.setStatus(UserStatus.INACTIVE);
         userRepository.save(targetUser);
@@ -252,12 +275,30 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private void validateCanDeleteUser(UserEntity authenticatedUser) {
+    private void validateCanDeleteUser(
+            UserEntity targetUser,
+            UserEntity authenticatedUser
+    ) {
         if (!hasRole(authenticatedUser, "ROLE_ADMIN")) {
             throw new AccessDeniedException(
                     "You do not have permission to deactivate this user"
             );
         }
+
+        if (isProtectedAdmin(targetUser)) {
+            throw new BadRequestException(
+                    "The protected administrator cannot be deactivated"
+            );
+        }
+    }
+
+    private boolean isProtectedAdmin(UserEntity user) {
+        return user != null
+                && user.getEmail() != null
+                && protectedAdminEmail != null
+                && user.getEmail().trim().equalsIgnoreCase(
+                protectedAdminEmail.trim()
+        );
     }
 
     private boolean hasRole(UserEntity user, String roleName) {
