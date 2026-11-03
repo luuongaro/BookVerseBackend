@@ -88,8 +88,8 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
-//                                "/api/payments/mercado-pago/webhook"
+                                "/swagger-ui.html",
+                                "/api/payments/mercado-pago/webhook"
                         ).permitAll()
                         .requestMatchers("/api/roles/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

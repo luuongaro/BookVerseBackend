@@ -1,6 +1,7 @@
 package com.grupo3.BookVerse.features.payments.service;
 
 import com.grupo3.BookVerse.features.payments.dto.MercadoPagoCheckoutResponseDto;
+import com.grupo3.BookVerse.features.payments.dto.MercadoPagoPaymentDto;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -12,4 +13,6 @@ public interface MercadoPagoService {
             BigDecimal amount,
             UUID paymentId
     );
+
+    MercadoPagoPaymentDto getPayment(String providerPaymentId);
 }

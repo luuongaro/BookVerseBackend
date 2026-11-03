@@ -12,9 +12,5 @@ import org.springframework.stereotype.Component;
 public class MercadoPagoProperties {
 
     private String accessToken;
-    private String successUrl;
-    private String pendingUrl;
-    private String failureUrl;
-    private String notificationUrl;
     private String webhookSecret;
 }

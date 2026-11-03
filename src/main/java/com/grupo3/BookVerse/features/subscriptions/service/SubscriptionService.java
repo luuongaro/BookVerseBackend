@@ -1,7 +1,9 @@
 package com.grupo3.BookVerse.features.subscriptions.service;
 
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionType;
+import com.grupo3.BookVerse.features.subscriptions.dto.PremiumSubscriptionCheckoutResponseDto;
 import com.grupo3.BookVerse.features.subscriptions.dto.SubscriptionResponseDto;
+import com.grupo3.BookVerse.features.subscriptions.dto.UserSubscriptionResponseDto;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,7 +22,8 @@ public interface SubscriptionService {
             UUID userIdExternal
     );
 
-    SubscriptionResponseDto upgradeAuthenticatedUserToPremium();
+    PremiumSubscriptionCheckoutResponseDto
+    initiateAuthenticatedUserPremiumSubscription();
 
     SubscriptionResponseDto downgradeAuthenticatedUserToFree();
 
@@ -29,5 +32,5 @@ public interface SubscriptionService {
             SubscriptionType subscriptionType
     );
 
-
+    UserSubscriptionResponseDto synchronizeAuthenticatedUserPremiumSubscription();
 }
