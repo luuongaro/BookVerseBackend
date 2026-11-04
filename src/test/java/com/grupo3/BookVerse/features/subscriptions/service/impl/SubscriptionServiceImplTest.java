@@ -130,92 +130,48 @@ class SubscriptionServiceImplTest {
     }
 
     @Test
-    void upgradeAuthenticatedUserToPremium_shouldUpgradeUser() {
+    void getAuthenticatedUserSubscription_shouldReturnSubscription() {
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
 
-        Authentication authentication =
-                mock(Authentication.class);
-
-        SecurityContext securityContext =
-                mock(SecurityContext.class);
-
-        when(securityContext.getAuthentication())
-                .thenReturn(authentication);
-
-        when(authentication.getPrincipal())
-                .thenReturn(user);
-
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getPrincipal()).thenReturn(user);
         SecurityContextHolder.setContext(securityContext);
 
-        when(subscriptionRepository.findByType(
-                SubscriptionType.PREMIUM
-        )).thenReturn(Optional.of(subscription));
-
-        when(userRepository.save(user))
-                .thenReturn(user);
-
-        when(subscriptionMapper.toResponseDto(subscription))
-                .thenReturn(response);
+        user.setSubscription(subscription);
+        when(subscriptionMapper.toResponseDto(subscription)).thenReturn(response);
 
         SubscriptionResponseDto result =
-                subscriptionService.upgradeAuthenticatedUserToPremium();
+                subscriptionService.getAuthenticatedUserSubscription();
 
         assertEquals(response, result);
-        assertEquals(subscription, user.getSubscription());
-
-        verify(userRepository)
-                .save(user);
-
-        verify(subscriptionRepository)
-                .findByType(SubscriptionType.PREMIUM);
+        verify(subscriptionMapper).toResponseDto(subscription);
     }
 
     @Test
-    void upgradeAuthenticatedUserToPremium_shouldThrow_whenPremiumNotFound() {
-
-        Authentication authentication =
-                mock(Authentication.class);
-
-        SecurityContext securityContext =
-                mock(SecurityContext.class);
-
-        when(securityContext.getAuthentication())
-                .thenReturn(authentication);
-
-        when(authentication.getPrincipal())
-                .thenReturn(user);
-
-        SecurityContextHolder.setContext(securityContext);
-
-        when(subscriptionRepository.findByType(
-                SubscriptionType.PREMIUM
-        )).thenReturn(Optional.empty());
-
-        assertThrows(
-                ResourceNotFoundException.class,
-                () -> subscriptionService.upgradeAuthenticatedUserToPremium()
-        );
-
-        verify(userRepository, never())
-                .save(any());
-    }
-
-    @Test
-    void upgradeAuthenticatedUserToPremium_shouldThrow_whenUserNotAuthenticated() {
-
-        SecurityContext securityContext =
-                mock(SecurityContext.class);
-
-        when(securityContext.getAuthentication())
-                .thenReturn(null);
-
+    void getAuthenticatedUserSubscription_shouldThrow_whenUserNotAuthenticated() {
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(null);
         SecurityContextHolder.setContext(securityContext);
 
         assertThrows(
                 AccessDeniedException.class,
-                () -> subscriptionService.upgradeAuthenticatedUserToPremium()
+                () -> subscriptionService.getAuthenticatedUserSubscription()
         );
+    }
 
-        verify(userRepository, never())
-                .save(any());
+    @Test
+    void getAuthenticatedUserSubscription_shouldThrow_whenPrincipalIsNotUserEntity() {
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getPrincipal()).thenReturn("not-a-user");
+        SecurityContextHolder.setContext(securityContext);
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> subscriptionService.getAuthenticatedUserSubscription()
+        );
     }
 }

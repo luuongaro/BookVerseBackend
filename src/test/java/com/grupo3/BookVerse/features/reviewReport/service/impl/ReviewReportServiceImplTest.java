@@ -15,7 +15,6 @@ import com.grupo3.BookVerse.features.reviews.domain.ReviewEntity;
 import com.grupo3.BookVerse.features.reviews.domain.ReviewTakedownStatus;
 import com.grupo3.BookVerse.features.reviews.repository.ReviewRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
-import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,9 +43,6 @@ class ReviewReportServiceImplTest {
 
     @Mock
     private ReviewRepository reviewRepository;
-
-    @Mock
-    private UserRepository userRepository;
 
     @InjectMocks
     private ReviewReportServiceImpl reviewReportService;
@@ -152,7 +148,6 @@ class ReviewReportServiceImplTest {
         ReviewReportCreateRequestDto dto =
                 new ReviewReportCreateRequestDto(
                         reviewId,
-                        userId,
                         "Spam content",
                         "Bad review"
                 );
@@ -166,8 +161,6 @@ class ReviewReportServiceImplTest {
                 new UsernamePasswordAuthenticationToken(user, null)
         );
 
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
         when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
                 .thenReturn(Optional.of(review));
         when(reviewReportRepository.existsByReviewIdAndReporterUserIdAndStatus(
@@ -206,7 +199,6 @@ class ReviewReportServiceImplTest {
         ReviewReportCreateRequestDto dto =
                 new ReviewReportCreateRequestDto(
                         reviewId,
-                        userId,
                         "Spam",
                         null
                 );
@@ -215,8 +207,6 @@ class ReviewReportServiceImplTest {
                 new UsernamePasswordAuthenticationToken(user, null)
         );
 
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
         when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
                 .thenReturn(Optional.of(review));
         when(reviewReportRepository.existsByReviewIdAndReporterUserIdAndStatus(
@@ -244,7 +234,6 @@ class ReviewReportServiceImplTest {
         ReviewReportCreateRequestDto dto =
                 new ReviewReportCreateRequestDto(
                         reviewId,
-                        userId,
                         "Spam",
                         null
                 );
@@ -253,8 +242,6 @@ class ReviewReportServiceImplTest {
                 new UsernamePasswordAuthenticationToken(user, null)
         );
 
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
         when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
                 .thenReturn(Optional.of(review));
 
@@ -284,8 +271,12 @@ class ReviewReportServiceImplTest {
 
         when(reviewReportRepository.findByIdExternal(reportId))
                 .thenReturn(Optional.of(report));
-        when(reviewReportRepository.save(report))
-                .thenReturn(report);
+        when(reviewReportRepository.findAllByReviewIdAndStatus(
+                review.getId(),
+                ReviewReportStatus.PENDING
+        )).thenReturn(List.of(report));
+        when(reviewReportRepository.saveAll(anyList()))
+                .thenReturn(List.of(report));
         when(reviewReportMapper.toResponseDto(report))
                 .thenReturn(response);
 
@@ -305,8 +296,12 @@ class ReviewReportServiceImplTest {
     void rejectReport_shouldRejectSuccessfully() {
         UserEntity moderator = authenticateModerator();
 
+        ReviewEntity review = new ReviewEntity();
+        review.setId(11L);
+
         ReviewReportEntity report = new ReviewReportEntity();
         report.setStatus(ReviewReportStatus.PENDING);
+        report.setReview(review);
 
         ReviewReportModerationRequestDto dto =
                 new ReviewReportModerationRequestDto(
@@ -318,8 +313,12 @@ class ReviewReportServiceImplTest {
 
         when(reviewReportRepository.findByIdExternal(reportId))
                 .thenReturn(Optional.of(report));
-        when(reviewReportRepository.save(report))
-                .thenReturn(report);
+        when(reviewReportRepository.findAllByReviewIdAndStatus(
+                report.getReview().getId(),
+                ReviewReportStatus.PENDING
+        )).thenReturn(List.of(report));
+        when(reviewReportRepository.saveAll(anyList()))
+                .thenReturn(List.of(report));
         when(reviewReportMapper.toResponseDto(report))
                 .thenReturn(response);
 

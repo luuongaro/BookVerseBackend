@@ -16,7 +16,6 @@ import com.grupo3.BookVerse.features.reviews.services.impl.ReviewServiceImpl;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
-import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,9 +43,6 @@ class ReviewServiceImplTest {
 
     @Mock
     private ReviewMapper reviewMapper;
-
-    @Mock
-    private UserRepository userRepository;
 
     @Mock
     private BookRepository bookRepository;
@@ -98,8 +94,9 @@ class ReviewServiceImplTest {
         List<ReviewEntity> reviews = List.of(review);
         List<ReviewResponseDto> dtos = List.of(response);
 
-        when(reviewRepository.findAllByDeletedFalseOrderByCreatedAtDesc())
-                .thenReturn(reviews);
+        when(reviewRepository.findAllByDeletedFalseAndTakedownStatusOrderByCreatedAtDesc(
+                ReviewTakedownStatus.ACTIVE
+        )).thenReturn(reviews);
 
         when(reviewMapper.toResponseListDto(reviews))
                 .thenReturn(dtos);
@@ -110,15 +107,19 @@ class ReviewServiceImplTest {
         assertEquals(dtos, result);
 
         verify(reviewRepository)
-                .findAllByDeletedFalseOrderByCreatedAtDesc();
+                .findAllByDeletedFalseAndTakedownStatusOrderByCreatedAtDesc(
+                        ReviewTakedownStatus.ACTIVE
+                );
     }
 
     // Verifies that a review can be found by external id
     @Test
     void getReviewById_shouldReturnDto() {
 
-        when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
-                .thenReturn(Optional.of(review));
+        when(reviewRepository.findByIdExternalAndDeletedFalseAndTakedownStatus(
+                reviewId,
+                ReviewTakedownStatus.ACTIVE
+        )).thenReturn(Optional.of(review));
 
         when(reviewMapper.toResponseDto(review))
                 .thenReturn(response);
@@ -129,15 +130,20 @@ class ReviewServiceImplTest {
         assertEquals(response, result);
 
         verify(reviewRepository)
-                .findByIdExternalAndDeletedFalse(reviewId);
+                .findByIdExternalAndDeletedFalseAndTakedownStatus(
+                        reviewId,
+                        ReviewTakedownStatus.ACTIVE
+                );
     }
 
     // Verifies exception when review does not exist
     @Test
     void getReviewById_shouldThrow_whenNotFound() {
 
-        when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
-                .thenReturn(Optional.empty());
+        when(reviewRepository.findByIdExternalAndDeletedFalseAndTakedownStatus(
+                reviewId,
+                ReviewTakedownStatus.ACTIVE
+        )).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
                 () -> reviewService.getReviewById(reviewId));
@@ -158,7 +164,10 @@ class ReviewServiceImplTest {
                 .thenReturn(Optional.of(book));
 
         when(reviewRepository
-                .findByBookIdAndDeletedFalseOrderByCreatedAtDesc(book.getId()))
+                .findByBookIdAndDeletedFalseAndTakedownStatusOrderByCreatedAtDesc(
+                        book.getId(),
+                        ReviewTakedownStatus.ACTIVE
+                ))
                 .thenReturn(reviews);
 
         when(reviewMapper.toResponseListDto(reviews))
@@ -184,7 +193,10 @@ class ReviewServiceImplTest {
                 .thenReturn(Optional.of(story));
 
         when(reviewRepository
-                .findByStoryIdAndDeletedFalseOrderByCreatedAtDesc(story.getId()))
+                .findByStoryIdAndDeletedFalseAndTakedownStatusOrderByCreatedAtDesc(
+                        story.getId(),
+                        ReviewTakedownStatus.ACTIVE
+                ))
                 .thenReturn(reviews);
 
         when(reviewMapper.toResponseListDto(reviews))
@@ -202,7 +214,6 @@ class ReviewServiceImplTest {
 
         ReviewCreateRequestDto dto =
                 new ReviewCreateRequestDto(
-                        userId,
                         bookId,
                         null,
                         5,
@@ -230,9 +241,6 @@ class ReviewServiceImplTest {
                 .thenReturn(user);
 
         SecurityContextHolder.setContext(securityContext);
-
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
 
         when(bookRepository.findByIdExternal(bookId))
                 .thenReturn(Optional.of(book));
@@ -273,7 +281,6 @@ class ReviewServiceImplTest {
 
         ReviewCreateRequestDto dto =
                 new ReviewCreateRequestDto(
-                        userId,
                         null,
                         storyId,
                         5,
@@ -284,9 +291,6 @@ class ReviewServiceImplTest {
         story.setId(1L);
 
         ReviewEntity entity = new ReviewEntity();
-
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
 
         when(storyRepository.findByIdExternalAndDeletedFalse(storyId))
                 .thenReturn(Optional.of(story));
@@ -312,7 +316,6 @@ class ReviewServiceImplTest {
 
         ReviewCreateRequestDto dto =
                 new ReviewCreateRequestDto(
-                        userId,
                         null,
                         null,
                         5,
@@ -329,7 +332,6 @@ class ReviewServiceImplTest {
 
         ReviewCreateRequestDto dto =
                 new ReviewCreateRequestDto(
-                        userId,
                         bookId,
                         storyId,
                         5,
@@ -346,7 +348,6 @@ class ReviewServiceImplTest {
 
         ReviewCreateRequestDto dto =
                 new ReviewCreateRequestDto(
-                        userId,
                         bookId,
                         null,
                         5,
@@ -374,9 +375,6 @@ class ReviewServiceImplTest {
                 .thenReturn(user);
 
         SecurityContextHolder.setContext(securityContext);
-
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
 
         when(bookRepository.findByIdExternal(bookId))
                 .thenReturn(Optional.of(book));
@@ -408,8 +406,10 @@ class ReviewServiceImplTest {
                         "Updated review content"
                 );
 
-        when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
-                .thenReturn(Optional.of(review));
+        when(reviewRepository.findByIdExternalAndDeletedFalseAndTakedownStatus(
+                reviewId,
+                ReviewTakedownStatus.ACTIVE
+        )).thenReturn(Optional.of(review));
 
         when(reviewRepository.save(review))
                 .thenReturn(review);
@@ -430,8 +430,10 @@ class ReviewServiceImplTest {
     @Test
     void deleteReview_shouldSoftDelete() {
 
-        when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
-                .thenReturn(Optional.of(review));
+        when(reviewRepository.findByIdExternalAndDeletedFalseAndTakedownStatus(
+                reviewId,
+                ReviewTakedownStatus.ACTIVE
+        )).thenReturn(Optional.of(review));
 
         reviewService.deleteReview(reviewId);
 
@@ -471,10 +473,6 @@ class ReviewServiceImplTest {
         when(anotherUser.getId())
                 .thenReturn(2L);
 
-        // Usuario SIN roles
-        when(anotherUser.getAuthorities())
-                .thenReturn(List.of());
-
         when(securityContext.getAuthentication())
                 .thenReturn(authentication);
 
@@ -483,8 +481,10 @@ class ReviewServiceImplTest {
 
         SecurityContextHolder.setContext(securityContext);
 
-        when(reviewRepository.findByIdExternalAndDeletedFalse(reviewId))
-                .thenReturn(Optional.of(review));
+        when(reviewRepository.findByIdExternalAndDeletedFalseAndTakedownStatus(
+                reviewId,
+                ReviewTakedownStatus.ACTIVE
+        )).thenReturn(Optional.of(review));
 
         assertThrows(
                 AccessDeniedException.class,

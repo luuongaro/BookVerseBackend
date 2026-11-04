@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -47,7 +48,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         ReadingGroupEntity group = findGroupByIdExternal(groupId);
         UserEntity authenticatedUser = getAuthenticatedUser();
 
-        validateCanManageMembers(groupId, authenticatedUser);
+        validateCanInviteMembers(groupId, authenticatedUser);
 
         if (requestDto == null || !requestDto.isTargetValid()) {
             throw new BadRequestException("Specify either a userId or an email");
@@ -204,26 +205,70 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     @Override
     @Transactional
     public void leaveGroup(UUID groupId) {
-        findGroupByIdExternal(groupId);
+        ReadingGroupEntity group = findGroupByIdExternal(groupId);
         UserEntity authenticatedUser = getAuthenticatedUser();
 
-        GroupMemberEntity membership = groupMemberRepository
-                .findByGroupIdExternalAndUserIdExternal(groupId, authenticatedUser.getIdExternal())
+        GroupMemberEntity membership =
+                groupMemberRepository
+                        .findByGroupIdExternalAndUserIdExternal(
+                                groupId,
+                                authenticatedUser.getIdExternal()
+                        )
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Group membership not found for user idExternal "
-                                + authenticatedUser.getIdExternal() + " in group idExternal " + groupId
+                        "Group membership not found"
                 ));
 
         if (membership.getStatus() != GroupMemberStatus.ACTIVE) {
-            throw new AccessDeniedException("Only active memberships can leave a group");
+            throw new AccessDeniedException(
+                    "Only active memberships can leave a group"
+            );
         }
 
         if (membership.getMemberType() == GroupMemberType.CREATOR) {
-            throw new AccessDeniedException("The group creator cannot leave the group");
+            GroupMemberEntity nextCreator =
+                    groupMemberRepository
+                            .findByGroupIdExternalAndStatus(groupId, GroupMemberStatus.ACTIVE)
+                            .stream()
+                            .filter(activeMembership ->
+                                    !activeMembership.getUser().getIdExternal()
+                                            .equals(authenticatedUser.getIdExternal()))
+                            .min(Comparator.comparing(GroupMemberEntity::getJoinedAt))
+                            .orElseThrow(() -> new AccessDeniedException(
+                                    "The group creator cannot leave while being the only active member"
+                            ));
+
+            nextCreator.setMemberType(GroupMemberType.CREATOR);
+            groupMemberRepository.save(nextCreator);
+
+            group.setCreatedBy(nextCreator.getUser());
+            readingGroupRepository.save(group);
         }
 
         membership.setStatus(GroupMemberStatus.LEFT);
         groupMemberRepository.save(membership);
+    }
+
+    private void validateCanInviteMembers(
+            UUID groupId,
+            UserEntity authenticatedUser
+    ) {
+        if (isAdminOrModerator(authenticatedUser)) {
+            return;
+        }
+
+        boolean isActiveMember =
+                groupMemberRepository
+                        .existsByGroupIdExternalAndUserIdExternalAndStatus(
+                                groupId,
+                                authenticatedUser.getIdExternal(),
+                                GroupMemberStatus.ACTIVE
+                        );
+
+        if (!isActiveMember) {
+            throw new AccessDeniedException(
+                    "Only active group members can invite users"
+            );
+        }
     }
 
     private void validateCanManageMembers(UUID groupId, UserEntity authenticatedUser) {
