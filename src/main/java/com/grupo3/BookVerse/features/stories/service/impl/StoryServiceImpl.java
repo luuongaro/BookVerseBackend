@@ -40,11 +40,8 @@ public class StoryServiceImpl implements StoryService {
     @Override
     @Transactional
     public StoryResponseDto createStory(StoryRequestDto storyRequestDto) {
+        UserEntity author = getAuthenticatedUser();
 
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        UserEntity author = findUserByIdExternal(storyRequestDto.getAuthorId());
-
-        validateAuthenticatedUserMatchesAuthor(authenticatedUser, author);
         validateAuthorCanPublishStory(author);
         validateAuthorCanPublishPremiumStory(author, storyRequestDto);
 
@@ -52,7 +49,6 @@ public class StoryServiceImpl implements StoryService {
         storyEntity.setAuthor(author);
 
         StoryEntity savedStory = storyRepository.save(storyEntity);
-
         return storyMapper.toResponseDto(savedStory);
     }
 
@@ -202,12 +198,6 @@ public class StoryServiceImpl implements StoryService {
         }
 
         return user;
-    }
-
-    private void validateAuthenticatedUserMatchesAuthor(UserEntity authenticatedUser, UserEntity author) {
-        if (!authenticatedUser.getId().equals(author.getId())) {
-            throw new AccessDeniedException("You cannot create a story on behalf of another user");
-        }
     }
 
     private void validateAuthorCanPublishStory(UserEntity author) {
