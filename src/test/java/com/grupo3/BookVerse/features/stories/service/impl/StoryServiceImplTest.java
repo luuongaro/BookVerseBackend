@@ -87,7 +87,6 @@ class StoryServiceImplTest {
                 .build();
 
         requestDto = StoryRequestDto.builder()
-                .authorId(userId)
                 .title("Historia")
                 .description("Descripción")
                 .accessType(StoryAccessType.FREE)
