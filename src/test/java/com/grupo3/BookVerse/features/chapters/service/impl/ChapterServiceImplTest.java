@@ -316,9 +316,26 @@ class ChapterServiceImplTest {
         ChapterEntity chapter =
                 ChapterEntity.builder()
                         .idExternal(id)
+                        .chapterNumber(2)
                         .story(story)
                         .deleted(false)
                         .build();
+
+        ChapterEntity activeChapter1 =
+                ChapterEntity.builder()
+                        .chapterNumber(1)
+                        .story(story)
+                        .deleted(false)
+                        .build();
+
+        ChapterEntity activeChapter3 =
+                ChapterEntity.builder()
+                        .chapterNumber(3)
+                        .story(story)
+                        .deleted(false)
+                        .build();
+
+        List<ChapterEntity> activeChapters = List.of(activeChapter1, activeChapter3);
 
         when(chapterRepository
                 .findByIdExternalAndDeletedFalse(id))
@@ -327,11 +344,18 @@ class ChapterServiceImplTest {
         when(chapterRepository.save(chapter))
                 .thenReturn(chapter);
 
+        when(chapterRepository.findByStoryIdAndDeletedFalseOrderByChapterNumberAsc(story.getId()))
+                .thenReturn(activeChapters);
+
         chapterService.deleteChapter(id);
 
         assertTrue(chapter.isDeleted());
+        assertEquals(1, activeChapter1.getChapterNumber());
+        assertEquals(2, activeChapter3.getChapterNumber());
 
         verify(chapterRepository)
                 .save(chapter);
+        verify(chapterRepository)
+                .saveAll(activeChapters);
     }
 }
