@@ -13,7 +13,7 @@ public interface GroupMemberMapper {
     @Mapping(target = "groupId", source = "group.idExternal")
     @Mapping(target = "groupName", source = "group.name")
     @Mapping(target = "userId", source = "user.idExternal")
-    @Mapping(target = "userName", source = "user.username")
+    @Mapping(target = "userName", source = "user.profileUsername")
     GroupMemberResponseDto toResponseDto(GroupMemberEntity entity);
 
     List<GroupMemberResponseDto> toResponseDtoList(List<GroupMemberEntity> entities);

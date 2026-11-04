@@ -7,7 +7,6 @@ import com.grupo3.BookVerse.features.reviews.repository.ReviewRepository;
 import com.grupo3.BookVerse.features.reviews.services.impl.ReviewServiceImpl;
 import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
-import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,9 +21,12 @@ class ReviewPublicNameTest {
     @Test
     void regularReaderReceivesAnotherReadersPublicNameWithoutProfileAccess() {
         var repository = mock(ReviewRepository.class);
-        var users = mock(UserRepository.class);
-        var service = new ReviewServiceImpl(repository, Mappers.getMapper(ReviewMapper.class), users,
-                mock(BookRepository.class), mock(StoryRepository.class));
+        var service = new ReviewServiceImpl(
+                repository,
+                Mappers.getMapper(ReviewMapper.class),
+                mock(BookRepository.class),
+                mock(StoryRepository.class)
+        );
         var author = new UserEntity();
         author.setIdExternal(UUID.randomUUID());
         author.setUsername("Public author");
@@ -39,7 +41,6 @@ class ReviewPublicNameTest {
             var response = service.getAllReviews().getFirst();
             assertEquals("Public author", response.reviewerName());
             assertEquals(author.getIdExternal(), response.reviewerId());
-            verifyNoInteractions(users);
         } finally {
             SecurityContextHolder.clearContext();
         }
