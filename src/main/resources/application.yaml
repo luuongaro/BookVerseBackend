@@ -20,10 +20,10 @@ spring:
         format_sql: true
 
   mail:
-    host: ${MAIL_HOST}
-    port: ${MAIL_PORT}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -42,12 +42,18 @@ jwt:
   expiration: ${JWT_EXPIRATION}
 
 app:
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  password-reset:
+    expiration-minutes: 30
+    cooldown-seconds: 120
   admin:
     username: ${ADMIN_USERNAME}
     email: ${ADMIN_EMAIL}
     password: ${ADMIN_PASSWORD}
 
   mail:
+    provider: ${MAIL_PROVIDER:smtp}
+    resend-api-key: ${RESEND_API_KEY:}
     from: ${MAIL_FROM}
 
 mercado-pago:

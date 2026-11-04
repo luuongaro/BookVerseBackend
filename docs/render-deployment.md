@@ -7,7 +7,8 @@ the Health Check Path under Advanced to `/api/health`.
 The image compiles the existing Java 24 target using Temurin 25 and runs with a
 JRE. Its default `render` profile binds to `0.0.0.0:${PORT:10000}`. Database schema
 updates are disabled in this profile; apply reviewed migrations to the existing
-Supabase database before deployment, including `docs/sql/fellow-readers-profile.sql`.
+Supabase database before deployment, including `docs/sql/fellow-readers-profile.sql`
+and `docs/sql/password-recovery.sql` when introducing password recovery.
 
 ## Environment variables
 
@@ -22,7 +23,9 @@ not placeholders. Existing `application.yaml` requires these names:
 | `JWT_SECRET` | Existing signing secret suitable for the configured JWT algorithm |
 | `JWT_EXPIRATION` | Token lifetime in milliseconds |
 | `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Existing configured bootstrap administrator |
-| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Mail provider settings |
+| `MAIL_PROVIDER` | `resend` (the Render profile default) |
+| `RESEND_API_KEY` | Resend Sending Access credential, scoped to the verified domain |
+| `MAIL_FROM` | Sender on the verified domain, e.g. `BookVerse <notificaciones@bookverse.com.ar>` |
 | `GOOGLE_BOOKS_API_URL` | Google Books volumes endpoint, `https://www.googleapis.com/books/v1/volumes` |
 | `GOOGLE_BOOKS_API_KEY` | Google Books credential |
 | `MERCADO_PAGO_ACCESS_TOKEN` | Mercado Pago server credential |
@@ -48,10 +51,11 @@ successful image build alone does not verify application behavior.
 ## Free instance limitations
 
 Free instances sleep after inactivity and wake on the next request. They also block
-outbound SMTP ports 25, 465 and 587, so the current SMTP email flows require either
-an HTTP email provider integration or an appropriate hosting plan. Do not treat a
-successful deployment as confirmation that registration emails or password resets
-work. Supabase remains the database; no Render Postgres service is needed.
+outbound SMTP ports 25, 465 and 587. This branch uses Resend over HTTPS in the
+Render profile; set up its domain and variables before deploying, following
+`docs/resend-email.md`. SMTP variables are optional and only used when explicitly
+selecting `MAIL_PROVIDER=smtp`. Verify registration and password recovery delivery
+after deploying; a healthy backend alone does not confirm delivery. Supabase remains the database; no Render Postgres service is needed.
 
 References: [Docker on Render](https://render.com/docs/docker),
 [free instance limitations](https://render.com/docs/free).

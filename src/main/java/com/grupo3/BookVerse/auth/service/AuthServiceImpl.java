@@ -35,7 +35,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(readOnly = true)
     public AuthResponse authenticate(AuthRequest request) {
-        authenticationManager.authenticate(
+        var authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.email(),
                         request.password()
@@ -49,7 +49,9 @@ public class AuthServiceImpl implements AuthService {
                         )
                 );
 
-        String token = jwtService.generateToken(user);
+        String token = jwtService.generateToken(
+                (org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal()
+        );
 
         return new AuthResponse(token, user.getIdExternal());
     }

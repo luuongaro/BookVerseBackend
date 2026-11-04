@@ -9,7 +9,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import com.grupo3.BookVerse.infrastructure.notifications.MailDelivery;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,7 +19,7 @@ import static org.mockito.Mockito.*;
 class EmailServiceImplTest {
 
     @Mock
-    private JavaMailSender mailSender;
+    private MailDelivery delivery;
 
     @InjectMocks
     private EmailServiceImpl emailService;
@@ -45,7 +45,7 @@ class EmailServiceImplTest {
         ArgumentCaptor<SimpleMailMessage> messageCaptor =
                 ArgumentCaptor.forClass(SimpleMailMessage.class);
 
-        verify(mailSender)
+        verify(delivery)
                 .send(messageCaptor.capture());
 
         SimpleMailMessage sentMessage =
@@ -83,12 +83,35 @@ class EmailServiceImplTest {
         String username = "Julieta";
 
         doThrow(new RuntimeException("Mail error"))
-                .when(mailSender)
+                .when(delivery)
                 .send(any(SimpleMailMessage.class));
 
         emailService.sendWelcomeEmail(to, username);
 
-        verify(mailSender)
+        verify(delivery)
                 .send(any(SimpleMailMessage.class));
+    }
+
+    @Test
+    void passwordRecoveryMailContainsTheExactLinkAndExpiration() {
+        String link = "https://www.bookverse.com.ar/reset-password#token=" + "t".repeat(43);
+        emailService.sendPasswordResetEmail("reader@example.com", link, 30);
+        var captured = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(delivery).send(captured.capture());
+        var mail = captured.getValue();
+        assertEquals("reader@example.com", mail.getTo()[0]);
+        assertEquals("bookverse@test.com", mail.getFrom());
+        org.junit.jupiter.api.Assertions.assertTrue(mail.getText().contains(link));
+        org.junit.jupiter.api.Assertions.assertTrue(mail.getText().contains("30 minutos"));
+        org.junit.jupiter.api.Assertions.assertTrue(mail.getText().contains("una sola vez"));
+    }
+
+    @Test
+    void passwordChangeNotificationDoesNotContainCredentialsOrARecoverySecret() {
+        emailService.sendPasswordChangedEmail("reader@example.com");
+        var captured = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(delivery).send(captured.capture());
+        assertEquals("Tu contraseña de BookVerse cambió", captured.getValue().getSubject());
+        org.junit.jupiter.api.Assertions.assertFalse(captured.getValue().getText().contains("token="));
     }
 }

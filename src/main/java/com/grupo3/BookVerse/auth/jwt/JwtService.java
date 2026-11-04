@@ -43,6 +43,9 @@ public class JwtService {
                 .collect(Collectors.toList());
 
         claims.put(ROLES_CLAIM, roles);
+        if (userDetails instanceof com.grupo3.BookVerse.features.users.domain.UserEntity user) {
+            claims.put("credentialsVersion", user.getCredentialsVersion());
+        }
 
         return buildToken(claims, userDetails, jwtExpiration);
     }
@@ -70,12 +73,19 @@ public class JwtService {
 
         return email.equals(userDetails.getUsername())
                 && !isTokenExpired(token)
+                && credentialsMatch(token, userDetails)
                 && userDetails.isAccountNonExpired()
                 && userDetails.isAccountNonLocked()
                 && userDetails.isCredentialsNonExpired()
                 && userDetails.isEnabled();
     }
 
+
+    private boolean credentialsMatch(String token, UserDetails details) {
+        if (!(details instanceof com.grupo3.BookVerse.features.users.domain.UserEntity user)) return true;
+        Number version = extractClaim(token, claims -> claims.get("credentialsVersion", Number.class));
+        return (version == null ? 0 : version.longValue()) == user.getCredentialsVersion();
+    }
 
     private String buildToken(
             Map<String, Object> extraClaims,

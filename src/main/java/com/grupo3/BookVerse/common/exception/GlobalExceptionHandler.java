@@ -38,6 +38,15 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(InvalidPasswordResetTokenException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidPasswordResetToken(InvalidPasswordResetTokenException ex) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(ApiErrorResponse.builder().message(ex.getMessage())
+                        .status(HttpStatus.GONE.value()).error(HttpStatus.GONE.getReasonPhrase())
+                        .timestamp(LocalDateTime.now()).build());
+    }
+
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiErrorResponse> handleBadRequestException(BadRequestException ex) {
         ApiErrorResponse errorResponse = ApiErrorResponse.builder()
