@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,11 +19,18 @@ public interface ChapterRepository extends JpaRepository<ChapterEntity, Long> {
 
     Optional<ChapterEntity> findTopByStoryIdOrderByChapterNumberDesc(Long storyId);
 
+    List<ChapterEntity> findByStoryIdAndDeletedFalseOrderByChapterNumberAsc(
+            Long storyId
+    );
+
+    Optional<ChapterEntity> findTopByStoryIdAndDeletedFalseOrderByChapterNumberDesc(
+            Long storyId
+    );
+
     Optional<ChapterEntity>
     findByStoryIdExternalAndChapterNumber(UUID storyId, Integer chapterNumber);
 
     Page<ChapterEntity> findByStoryIdAndDeletedFalseAndPublishedTrueOrderByChapterNumberAsc(
             Long storyId, Pageable pageable);
 }
-
 

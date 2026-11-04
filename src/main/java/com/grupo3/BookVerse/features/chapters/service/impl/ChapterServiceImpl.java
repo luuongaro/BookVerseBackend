@@ -42,7 +42,7 @@ public class ChapterServiceImpl implements ChapterService {
         validateCanManageStory(story, authenticatedUser);
 
         int nextChapterNumber = chapterRepository
-                .findTopByStoryIdOrderByChapterNumberDesc(story.getId())
+                .findTopByStoryIdAndDeletedFalseOrderByChapterNumberDesc(story.getId())
                 .map(chapter -> chapter.getChapterNumber() + 1)
                 .orElse(1);
 
@@ -137,8 +137,19 @@ public class ChapterServiceImpl implements ChapterService {
         UserEntity authenticatedUser = getAuthenticatedUser();
         validateCanManageStory(existing.getStory(), authenticatedUser);
 
+        Long storyId = existing.getStory().getId();
+
         existing.setDeleted(true);
         chapterRepository.save(existing);
+
+        var activeChapters =
+                chapterRepository.findByStoryIdAndDeletedFalseOrderByChapterNumberAsc(storyId);
+
+        for (int index = 0; index < activeChapters.size(); index++) {
+            activeChapters.get(index).setChapterNumber(index + 1);
+        }
+
+        chapterRepository.saveAll(activeChapters);
     }
 
     private ChapterEntity findActiveChapterByIdExternal(UUID idExternal) {
