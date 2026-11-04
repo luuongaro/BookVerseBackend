@@ -20,5 +20,8 @@ spring:
           writetimeout: 10000
 
 app:
+  mail:
+    provider: ${MAIL_PROVIDER:resend}
+  frontend-url: ${FRONTEND_URL:https://www.bookverse.com.ar}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:https://www.bookverse.com.ar,https://bookverse.com.ar}

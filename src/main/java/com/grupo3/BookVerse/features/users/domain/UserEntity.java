@@ -51,6 +51,11 @@ public class UserEntity implements UserDetails {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Builder.Default
+    @Column(name = "credentials_version", nullable = false, columnDefinition = "bigint default 0")
+    private long credentialsVersion = 0;
+
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "subscription_id", nullable = false)
     private SubscriptionEntity subscription;

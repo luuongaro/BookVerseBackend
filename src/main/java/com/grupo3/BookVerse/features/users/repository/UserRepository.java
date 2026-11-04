@@ -31,6 +31,14 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
                                                @Param("viewerId") UUID viewerId,
                                                Pageable pageable);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserEntity u where lower(u.email) = lower(:email) and u.status = com.grupo3.BookVerse.features.users.domain.UserStatus.ACTIVE")
+    Optional<UserEntity> findForPasswordRecoveryByEmail(@Param("email") String email);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserEntity u where u.id = :id and u.status = com.grupo3.BookVerse.features.users.domain.UserStatus.ACTIVE")
+    Optional<UserEntity> findForPasswordRecoveryById(@Param("id") Long id);
+
     boolean existsByEmail(String email);
 
     boolean existsByEmailIgnoreCase(String email);
