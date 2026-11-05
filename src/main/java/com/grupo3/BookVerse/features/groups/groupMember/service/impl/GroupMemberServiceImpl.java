@@ -225,23 +225,41 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         }
 
         if (membership.getMemberType() == GroupMemberType.CREATOR) {
-            GroupMemberEntity nextCreator =
+            List<GroupMemberEntity> otherActiveMembers =
                     groupMemberRepository
-                            .findByGroupIdExternalAndStatus(groupId, GroupMemberStatus.ACTIVE)
+                            .findByGroupIdExternalAndStatus(
+                                    groupId,
+                                    GroupMemberStatus.ACTIVE
+                            )
                             .stream()
-                            .filter(activeMembership ->
-                                    !activeMembership.getUser().getIdExternal()
-                                            .equals(authenticatedUser.getIdExternal()))
-                            .min(Comparator.comparing(GroupMemberEntity::getJoinedAt))
-                            .orElseThrow(() -> new AccessDeniedException(
-                                    "The group creator cannot leave while being the only active member"
-                            ));
+                            .filter(member ->
+                                    !Objects.equals(
+                                            member.getUser().getIdExternal(),
+                                            authenticatedUser.getIdExternal()
+                                    )
+                            )
+                            .filter(member ->
+                                    member.getUser().getStatus() == UserStatus.ACTIVE
+                            )
+                            .toList();
 
-            nextCreator.setMemberType(GroupMemberType.CREATOR);
-            groupMemberRepository.save(nextCreator);
+            if (otherActiveMembers.isEmpty()) {
+                group.setIsActive(false);
+                readingGroupRepository.save(group);
+            } else {
+                GroupMemberEntity nextCreator =
+                        otherActiveMembers.stream()
+                                .min(Comparator.comparing(
+                                        GroupMemberEntity::getJoinedAt
+                                ))
+                                .orElseThrow();
 
-            group.setCreatedBy(nextCreator.getUser());
-            readingGroupRepository.save(group);
+                nextCreator.setMemberType(GroupMemberType.CREATOR);
+                groupMemberRepository.save(nextCreator);
+
+                group.setCreatedBy(nextCreator.getUser());
+                readingGroupRepository.save(group);
+            }
         }
 
         membership.setStatus(GroupMemberStatus.LEFT);
