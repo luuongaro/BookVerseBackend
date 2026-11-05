@@ -52,6 +52,9 @@ public class ReadingGroupEntity {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 
+    @Column(name = "total_chapters")
+    private Integer totalChapters;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -46,6 +46,16 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
         UserEntity authenticatedUser = getAuthenticatedUser();
         validateCanManageGoals(group, authenticatedUser);
 
+        if (group.getBook() != null && requestDto.goalType() == GoalType.CHAPTER) {
+            if (requestDto.totalChapters() == null || requestDto.totalChapters() <= 0) {
+                throw new BadRequestException(
+                        "Book chapter goals require a positive total chapter count"
+                );
+            }
+
+            group.setTotalChapters(requestDto.totalChapters());
+        }
+
         validateNoActiveGoal(groupId);
         validateGoalParams(requestDto, group);
 
@@ -145,10 +155,32 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
             throw new BadRequestException("Percentage target progress cannot exceed 100");
         }
 
-        if (group.getBook() != null && requestDto.goalType() == GoalType.CHAPTER) {
-            throw new BadRequestException(
-                    "Groups reading a book can only define PERCENTAGE goals"
-            );
+        if (requestDto.goalType() == GoalType.CHAPTER) {
+            int totalChapters;
+
+            if (group.getBook() != null) {
+                totalChapters = group.getTotalChapters() == null
+                        ? 0
+                        : group.getTotalChapters();
+            } else {
+                totalChapters = group.getStory().getChapters() == null
+                        ? 0
+                        : (int) group.getStory().getChapters().stream()
+                                .filter(chapter -> chapter.isPublished() && !chapter.isDeleted())
+                                .count();
+            }
+
+            if (totalChapters == 0) {
+                throw new BadRequestException(
+                        "Configure the total number of chapters before creating a chapter goal"
+                );
+            }
+
+            if (requestDto.targetProgress() > totalChapters) {
+                throw new BadRequestException(
+                        "Chapter target cannot exceed the total number of chapters"
+                );
+            }
         }
 
         if (group.getStory() != null) {
