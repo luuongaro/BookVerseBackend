@@ -25,5 +25,8 @@ public class GroupMemberResponseDto {
     private GroupMemberType memberType;
     private GroupMemberStatus status;
 
+    private Integer groupChapterProgress;
+    private LocalDateTime groupProgressUpdatedAt;
+
     private LocalDateTime joinedAt;
 }

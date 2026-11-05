@@ -372,7 +372,10 @@ public class UserServiceImpl implements UserService {
                         creatorReplacements
                 );
             } else {
+                membership.setGroupChapterProgress(null);
+                membership.setGroupProgressUpdatedAt(null);
                 membership.setStatus(GroupMemberStatus.LEFT);
+
                 groupMemberRepository.save(membership);
             }
         }
@@ -409,7 +412,10 @@ public class UserServiceImpl implements UserService {
             group.setIsActive(false);
             readingGroupRepository.save(group);
 
+            creatorMembership.setGroupChapterProgress(null);
+            creatorMembership.setGroupProgressUpdatedAt(null);
             creatorMembership.setStatus(GroupMemberStatus.LEFT);
+
             groupMemberRepository.save(creatorMembership);
 
             return;
@@ -428,7 +434,10 @@ public class UserServiceImpl implements UserService {
         group.setCreatedBy(newCreator.getUser());
         readingGroupRepository.save(group);
 
+        creatorMembership.setGroupChapterProgress(null);
+        creatorMembership.setGroupProgressUpdatedAt(null);
         creatorMembership.setStatus(GroupMemberStatus.LEFT);
+
         groupMemberRepository.save(creatorMembership);
     }
 

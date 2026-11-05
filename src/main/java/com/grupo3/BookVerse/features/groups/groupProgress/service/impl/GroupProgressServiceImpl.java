@@ -64,10 +64,20 @@ public class GroupProgressServiceImpl implements GroupProgressService {
                 .map(UserEntity::getIdExternal)
                 .toList();
 
+
         if (activeMemberIds.isEmpty()) {
             return buildResponse(groupId, goal, 0.0);
         }
 
+        if (group.getBook() != null
+                && goal.getGoalType() == GoalType.CHAPTER) {
+
+            return calculateBookChapterProgress(
+                    groupId,
+                    group,
+                    goal
+            );
+        }
         List<ReadingStatusEntity> statuses = getGroupReadingStatuses(group, activeMemberIds).stream()
                 .filter(status -> VALID_PROGRESS_STATUSES.contains(status.getStatus()))
                 .toList();
@@ -81,6 +91,51 @@ public class GroupProgressServiceImpl implements GroupProgressService {
         double averageProgress = totalProgress / activeMemberIds.size();
 
         return buildResponse(groupId, goal, averageProgress);
+    }
+
+    private GroupProgressResponseDto calculateBookChapterProgress(
+            UUID groupId,
+            ReadingGroupEntity group,
+            GroupGoalsEntity goal
+    ) {
+        if (group.getTotalChapters() == null
+                || group.getTotalChapters() <= 0) {
+            throw new BadRequestException(
+                    "Book group does not have a valid total chapter reference"
+            );
+        }
+
+        List<GroupMemberEntity> activeMembers =
+                group.getMembers().stream()
+                        .filter(member ->
+                                member.getStatus()
+                                        == GroupMemberStatus.ACTIVE
+                        )
+                        .toList();
+
+        if (activeMembers.isEmpty()) {
+            return buildResponse(
+                    groupId,
+                    goal,
+                    0.0
+            );
+        }
+
+        double totalProgress =
+                activeMembers.stream()
+                        .map(GroupMemberEntity::getGroupChapterProgress)
+                        .filter(Objects::nonNull)
+                        .mapToDouble(Integer::doubleValue)
+                        .sum();
+
+        double averageProgress =
+                totalProgress / activeMembers.size();
+
+        return buildResponse(
+                groupId,
+                goal,
+                averageProgress
+        );
     }
 
     private List<ReadingStatusEntity> getGroupReadingStatuses(
@@ -115,36 +170,69 @@ public class GroupProgressServiceImpl implements GroupProgressService {
             return 0.0;
         }
 
-        int totalChapters = getTotalChapters(group);
-        ProgressType progressType = status.getProgressType();
+        ProgressType userProgressType = status.getProgressType();
+        GoalType goalType = goal.getGoalType();
 
-        if (goal.getGoalType() == GoalType.PERCENTAGE) {
-            if (progressType == ProgressType.PERCENTAGE) {
+        if (group.getBook() != null) {
+
+
+            if (userProgressType == ProgressType.PERCENTAGE) {
                 return status.getProgressValue().doubleValue();
             }
 
-            return totalChapters == 0
-                    ? 0.0
-                    : status.getProgressValue().doubleValue() * 100.0 / totalChapters;
+            if (userProgressType == ProgressType.CHAPTER) {
+
+                if (status.getProgressTotal() == null
+                        || status.getProgressTotal() <= 0) {
+                    throw new BadRequestException(
+                            "Total chapters are required to normalize book chapter progress"
+                    );
+                }
+
+                return (status.getProgressValue() * 100.0)
+                        / status.getProgressTotal();
+            }
         }
 
-        if (progressType == ProgressType.CHAPTER) {
-            return status.getProgressValue().doubleValue();
+        if (group.getStory() != null) {
+            if (goalType == GoalType.PERCENTAGE) {
+                if (userProgressType == ProgressType.PERCENTAGE) {
+                    return status.getProgressValue().doubleValue();
+                }
+
+                if (userProgressType == ProgressType.CHAPTER) {
+                    int totalChapters = getTotalChapters(group);
+                    return totalChapters == 0
+                            ? 0.0
+                            : (status.getProgressValue() * 100.0) / totalChapters;
+                }
+            }
+
+            if (goalType == GoalType.CHAPTER) {
+                if (userProgressType == ProgressType.CHAPTER) {
+                    return status.getProgressValue().doubleValue();
+                }
+
+                if (userProgressType == ProgressType.PERCENTAGE) {
+                    int totalChapters = getTotalChapters(group);
+                    return totalChapters == 0
+                            ? 0.0
+                            : (totalChapters * status.getProgressValue()) / 100.0;
+                }
+            }
         }
 
-        return totalChapters == 0
-                ? 0.0
-                : totalChapters * status.getProgressValue().doubleValue() / 100.0;
+        return 0.0;
     }
 
     private int getTotalChapters(ReadingGroupEntity group) {
-        if (group.getBook() != null) {
-            return group.getTotalChapters() == null
-                    ? 0
-                    : group.getTotalChapters();
+        if (group.getStory() == null) {
+            throw new BadRequestException(
+                    "Cannot normalize chapter progress for book groups"
+            );
         }
 
-        if (group.getStory() == null || group.getStory().getChapters() == null) {
+        if (group.getStory().getChapters() == null) {
             return 0;
         }
 

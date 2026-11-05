@@ -19,7 +19,8 @@ public record ReadingStatusRequestDto(
         LocalDateTime finishedAt,
 
         ProgressType progressType,
-        Integer progressValue
+        Integer progressValue,
+        Integer progressTotal
 
 ) {
 }

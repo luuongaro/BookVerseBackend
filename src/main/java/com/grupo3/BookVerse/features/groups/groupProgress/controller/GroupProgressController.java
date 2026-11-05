@@ -1,4 +1,4 @@
-package com.grupo3.BookVerse.features.groups.groupProgress;
+package com.grupo3.BookVerse.features.groups.groupProgress.controller;
 
 
 import com.grupo3.BookVerse.features.groups.groupProgress.dto.GroupProgressResponseDto;

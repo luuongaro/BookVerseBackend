@@ -20,9 +20,6 @@ public record GroupGoalsRequestDto(
         @Positive(message = "targetProgress must be greater than 0")
         Integer targetProgress,
 
-        @Positive(message = "totalChapters must be greater than 0")
-        Integer totalChapters,
-
         @NotNull(message = "targetDate cannot be null")
         @Future(message = "targetDate must be a future date")
         LocalDate targetDate

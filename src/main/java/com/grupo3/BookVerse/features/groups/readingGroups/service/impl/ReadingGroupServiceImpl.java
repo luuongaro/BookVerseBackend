@@ -46,6 +46,7 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
     @Transactional
     public ReadingGroupResponseDto createGroup(ReadingGroupRequestDto dto) {
         validateContent(dto.bookId(), dto.storyId());
+        validateChapterReference(dto);
 
         UserEntity authenticatedUser = getAuthenticatedUser();
         String normalizedName = normalizeName(dto.name());
@@ -64,7 +65,20 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
         validateUniqueActiveGroupName(normalizedName, dto.bookId(), dto.storyId());
 
         ReadingGroupEntity entity = mapper.toEntity(dto);
+
         entity.setName(normalizedName);
+
+        entity.setEditionReference(
+                dto.editionReference() == null
+                        || dto.editionReference().isBlank()
+                        ? null
+                        : dto.editionReference().trim()
+        );
+
+        entity.setTotalChapters(
+                dto.totalChapters()
+        );
+
         entity.setCreatedBy(authenticatedUser);
         entity.setIsActive(Boolean.TRUE);
         entity.setBook(book);
@@ -158,22 +172,6 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
         }
 
         validateUniqueActiveGroupNameForUpdate(entity, normalizedName);
-
-        if (dto.totalChapters() != null) {
-            if (entity.getBook() == null) {
-                throw new BadRequestException(
-                        "Total chapters can only be configured for book groups"
-                );
-            }
-
-            if (dto.totalChapters() <= 0) {
-                throw new BadRequestException(
-                        "Total chapters must be greater than 0"
-                );
-            }
-
-            entity.setTotalChapters(dto.totalChapters());
-        }
 
         entity.setName(normalizedName);
 
@@ -323,5 +321,45 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
         }
 
         return user;
+    }
+
+    private void validateChapterReference(
+            ReadingGroupRequestDto dto
+    ) {
+        boolean isBookGroup = dto.bookId() != null;
+        boolean isStoryGroup = dto.storyId() != null;
+
+        boolean hasEditionReference =
+                dto.editionReference() != null
+                        && !dto.editionReference().isBlank();
+
+        boolean hasTotalChapters =
+                dto.totalChapters() != null;
+
+        if (isStoryGroup) {
+            if (hasEditionReference || hasTotalChapters) {
+                throw new BadRequestException(
+                        "Edition and total chapter references are only allowed for book groups"
+                );
+            }
+
+            return;
+        }
+
+        if (!isBookGroup) {
+            return;
+        }
+
+        if (hasEditionReference && !hasTotalChapters) {
+            throw new BadRequestException(
+                    "totalChapters is required when an edition reference is provided"
+            );
+        }
+
+        if (hasTotalChapters && dto.totalChapters() <= 0) {
+            throw new BadRequestException(
+                    "Total chapters must be greater than 0"
+            );
+        }
     }
 }
