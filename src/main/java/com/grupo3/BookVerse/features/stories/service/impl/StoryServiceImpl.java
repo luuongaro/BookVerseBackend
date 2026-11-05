@@ -13,6 +13,7 @@ import com.grupo3.BookVerse.features.stories.mappers.StoryMapper;
 import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.stories.service.StoryService;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionType;
+import com.grupo3.BookVerse.features.users.domain.AccountStoryAction;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -288,5 +289,31 @@ public class StoryServiceImpl implements StoryService {
                         );
 
         return isOwner || isAdmin || isModerator;
+    }
+
+    private void processUserStories(
+            UserEntity user,
+            AccountStoryAction storyAction
+    ) {
+        if (storyAction == null) {
+            throw new BadRequestException(
+                    "A story action must be selected"
+            );
+        }
+
+        if (storyAction == AccountStoryAction.KEEP) {
+            return;
+        }
+
+        List<StoryEntity> activeStories =
+                storyRepository.findByAuthorIdAndDeletedFalse(
+                        user.getId()
+                );
+
+        activeStories.forEach(story ->
+                story.setDeleted(true)
+        );
+
+        storyRepository.saveAll(activeStories);
     }
 }

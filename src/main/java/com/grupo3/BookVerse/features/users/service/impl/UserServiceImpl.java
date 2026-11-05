@@ -3,16 +3,22 @@ package com.grupo3.BookVerse.features.users.service.impl;
 import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.DuplicateResourceException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
+import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
+import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
+import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberType;
+import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
+import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
+import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.roles.domain.RoleEntity;
 import com.grupo3.BookVerse.features.roles.repository.RoleRepository;
+import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
+import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionEntity;
 import com.grupo3.BookVerse.features.subscriptions.repository.SubscriptionRepository;
+import com.grupo3.BookVerse.features.users.domain.AccountStoryAction;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
 import com.grupo3.BookVerse.features.users.domain.UserStatus;
-import com.grupo3.BookVerse.features.users.dto.UserRequestDto;
-import com.grupo3.BookVerse.features.users.dto.UserResponseDto;
-import com.grupo3.BookVerse.features.users.dto.UserRolesUpdateRequestDto;
-import com.grupo3.BookVerse.features.users.dto.UserUpdateRequestDto;
+import com.grupo3.BookVerse.features.users.dto.*;
 import com.grupo3.BookVerse.features.users.mappers.UserMapper;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import com.grupo3.BookVerse.features.users.service.UserService;
@@ -25,12 +31,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +47,9 @@ public class UserServiceImpl implements UserService {
     private final SubscriptionRepository subscriptionRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final GroupMemberRepository groupMemberRepository;
+    private final ReadingGroupRepository readingGroupRepository;
+    private final StoryRepository storyRepository;
 
     @Override
     @Transactional
@@ -308,5 +312,192 @@ public class UserServiceImpl implements UserService {
                 .anyMatch(authority ->
                         roleName.equals(authority.getAuthority())
                 );
+    }
+
+    @Override
+    @Transactional
+    public void deactivateOwnAccount(AccountDeactivationRequestDto dto) {
+
+        if (dto == null) {
+            throw new BadRequestException(
+                    "Account deactivation request is required"
+            );
+        }
+
+        UserEntity authenticatedUser = getAuthenticatedUser();
+
+        if (isProtectedAdmin(authenticatedUser)) {
+            throw new BadRequestException(
+                    "The protected administrator cannot be deactivated"
+            );
+        }
+
+        if (authenticatedUser.getStatus() != UserStatus.ACTIVE) {
+            throw new BadRequestException(
+                    "Only an active account can be deactivated"
+            );
+        }
+
+        processGroupMemberships(
+                authenticatedUser,
+                dto.creatorReplacements()
+        );
+
+        processUserStories(
+                authenticatedUser,
+                dto.storyAction()
+        );
+
+        authenticatedUser.setStatus(UserStatus.INACTIVE);
+        userRepository.save(authenticatedUser);
+    }
+
+    private void processGroupMemberships(
+            UserEntity user,
+            Map<UUID, String> creatorReplacements
+    ) {
+
+        List<GroupMemberEntity> memberships =
+                groupMemberRepository.findByUserIdExternalAndStatus(
+                        user.getIdExternal(),
+                        GroupMemberStatus.ACTIVE
+                );
+
+        for (GroupMemberEntity membership : memberships) {
+
+            if (membership.getMemberType() == GroupMemberType.CREATOR) {
+                processCreatorMembership(
+                        membership,
+                        user,
+                        creatorReplacements
+                );
+            } else {
+                membership.setStatus(GroupMemberStatus.LEFT);
+                groupMemberRepository.save(membership);
+            }
+        }
+    }
+
+    private void processCreatorMembership(
+            GroupMemberEntity creatorMembership,
+            UserEntity user,
+            Map<UUID, String> creatorReplacements
+    ) {
+
+        ReadingGroupEntity group = creatorMembership.getGroup();
+
+        List<GroupMemberEntity> otherMembers =
+                groupMemberRepository
+                        .findByGroupIdExternalAndStatus(
+                                group.getIdExternal(),
+                                GroupMemberStatus.ACTIVE
+                        )
+                        .stream()
+                        .filter(member ->
+                                !Objects.equals(
+                                        member.getUser().getId(),
+                                        user.getId()
+                                )
+                        )
+                        .filter(member ->
+                                member.getUser().getStatus() == UserStatus.ACTIVE
+                        )
+                        .toList();
+
+        if (otherMembers.isEmpty()) {
+
+            group.setIsActive(false);
+            readingGroupRepository.save(group);
+
+            creatorMembership.setStatus(GroupMemberStatus.LEFT);
+            groupMemberRepository.save(creatorMembership);
+
+            return;
+        }
+
+        GroupMemberEntity newCreator =
+                findReplacementCreator(
+                        group,
+                        otherMembers,
+                        creatorReplacements
+                );
+
+        newCreator.setMemberType(GroupMemberType.CREATOR);
+        groupMemberRepository.save(newCreator);
+
+        group.setCreatedBy(newCreator.getUser());
+        readingGroupRepository.save(group);
+
+        creatorMembership.setStatus(GroupMemberStatus.LEFT);
+        groupMemberRepository.save(creatorMembership);
+    }
+
+    private GroupMemberEntity findReplacementCreator(
+            ReadingGroupEntity group,
+            List<GroupMemberEntity> candidates,
+            Map<UUID, String> creatorReplacements
+    ) {
+
+        if (creatorReplacements != null) {
+
+            String selectedUsername =
+                    creatorReplacements.get(group.getIdExternal());
+
+            if (selectedUsername != null
+                    && !selectedUsername.isBlank()) {
+
+                return candidates.stream()
+                        .filter(member ->
+                                member.getUser()
+                                        .getProfileUsername()
+                                        .equalsIgnoreCase(
+                                                selectedUsername.trim()
+                                        )
+                        )
+                        .findFirst()
+                        .orElseThrow(() ->
+                                new BadRequestException(
+                                        "Selected creator must be an active member of group: "
+                                                + group.getName()
+                                )
+                        );
+            }
+        }
+
+        return candidates.stream()
+                .min(Comparator.comparing(GroupMemberEntity::getJoinedAt))
+                .orElseThrow(() ->
+                        new BadRequestException(
+                                "Unable to assign a new creator for group: "
+                                        + group.getName()
+                        )
+                );
+    }
+
+    private void processUserStories(
+            UserEntity user,
+            AccountStoryAction storyAction
+    ) {
+
+        if (storyAction == null) {
+            throw new BadRequestException(
+                    "A story action must be selected"
+            );
+        }
+
+        if (storyAction == AccountStoryAction.KEEP) {
+            return;
+        }
+
+        List<StoryEntity> activeStories =
+                storyRepository.findByAuthorIdAndDeletedFalse(
+                        user.getId()
+                );
+
+        activeStories.forEach(story ->
+                story.setDeleted(true)
+        );
+
+        storyRepository.saveAll(activeStories);
     }
 }
