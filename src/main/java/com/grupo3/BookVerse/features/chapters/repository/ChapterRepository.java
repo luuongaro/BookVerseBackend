@@ -32,5 +32,17 @@ public interface ChapterRepository extends JpaRepository<ChapterEntity, Long> {
 
     Page<ChapterEntity> findByStoryIdAndDeletedFalseAndPublishedTrueOrderByChapterNumberAsc(
             Long storyId, Pageable pageable);
+
+    Optional<ChapterEntity>
+    findByStoryIdExternalAndChapterNumberAndDeletedFalseAndPublishedTrue(
+            UUID storyId,
+            Integer chapterNumber
+    );
+
+    Optional<ChapterEntity>
+    findTopByStoryIdExternalAndDeletedFalseAndPublishedTrueOrderByChapterNumberDesc(
+            UUID storyId
+    );
+
 }
 

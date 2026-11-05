@@ -49,6 +49,12 @@ public class ReadingGroupEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "edition_reference", length = 150)
+    private String editionReference;
+
+    @Column(name = "chapter_reference_total")
+    private Integer chapterReferenceTotal;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 

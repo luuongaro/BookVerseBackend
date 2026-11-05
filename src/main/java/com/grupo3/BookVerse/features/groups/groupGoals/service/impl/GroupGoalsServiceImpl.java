@@ -145,10 +145,22 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
             throw new BadRequestException("Percentage target progress cannot exceed 100");
         }
 
-        if (group.getBook() != null && requestDto.goalType() == GoalType.CHAPTER) {
-            throw new BadRequestException(
-                    "Groups reading a book can only define PERCENTAGE goals"
-            );
+        if (group.getBook() != null
+                && requestDto.goalType() == GoalType.CHAPTER) {
+
+            if (group.getChapterReferenceTotal() == null) {
+                throw new BadRequestException(
+                        "Book groups require a chapter reference to define CHAPTER goals"
+                );
+            }
+
+            if (requestDto.targetProgress()
+                    > group.getChapterReferenceTotal()) {
+
+                throw new BadRequestException(
+                        "Chapter target cannot exceed the group's chapter reference total"
+                );
+            }
         }
 
         if (group.getStory() != null) {

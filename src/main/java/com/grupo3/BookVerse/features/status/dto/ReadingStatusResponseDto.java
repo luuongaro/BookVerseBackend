@@ -28,6 +28,7 @@ public class ReadingStatusResponseDto {
 
     private ProgressType progressType;
     private Integer progressValue;
+    private Integer progressTotal;
 
     private LocalDateTime startedAt;
 

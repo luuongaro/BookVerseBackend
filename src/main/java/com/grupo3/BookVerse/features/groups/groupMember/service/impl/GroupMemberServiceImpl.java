@@ -87,6 +87,9 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             existingMembership.setMemberType(GroupMemberType.MEMBER);
             existingMembership.setJoinedAt(LocalDateTime.now());
 
+            existingMembership.setGroupChapterProgress(null);
+            existingMembership.setGroupProgressUpdatedAt(null);
+
             GroupMemberEntity reactivatedMembership =
                     groupMemberRepository.save(existingMembership);
 
@@ -198,7 +201,10 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             throw new AccessDeniedException("The group creator cannot be removed by a regular group manager");
         }
 
+        membership.setGroupChapterProgress(null);
+        membership.setGroupProgressUpdatedAt(null);
         membership.setStatus(GroupMemberStatus.REMOVED);
+
         groupMemberRepository.save(membership);
     }
 
@@ -214,9 +220,9 @@ public class GroupMemberServiceImpl implements GroupMemberService {
                                 groupId,
                                 authenticatedUser.getIdExternal()
                         )
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Group membership not found"
-                ));
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Group membership not found"
+                        ));
 
         if (membership.getStatus() != GroupMemberStatus.ACTIVE) {
             throw new AccessDeniedException(
@@ -225,27 +231,114 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         }
 
         if (membership.getMemberType() == GroupMemberType.CREATOR) {
-            GroupMemberEntity nextCreator =
+            List<GroupMemberEntity> otherActiveMembers =
                     groupMemberRepository
-                            .findByGroupIdExternalAndStatus(groupId, GroupMemberStatus.ACTIVE)
+                            .findByGroupIdExternalAndStatus(
+                                    groupId,
+                                    GroupMemberStatus.ACTIVE
+                            )
                             .stream()
-                            .filter(activeMembership ->
-                                    !activeMembership.getUser().getIdExternal()
-                                            .equals(authenticatedUser.getIdExternal()))
-                            .min(Comparator.comparing(GroupMemberEntity::getJoinedAt))
-                            .orElseThrow(() -> new AccessDeniedException(
-                                    "The group creator cannot leave while being the only active member"
-                            ));
+                            .filter(member ->
+                                    !Objects.equals(
+                                            member.getUser().getIdExternal(),
+                                            authenticatedUser.getIdExternal()
+                                    )
+                            )
+                            .filter(member ->
+                                    member.getUser().getStatus() == UserStatus.ACTIVE
+                            )
+                            .toList();
 
-            nextCreator.setMemberType(GroupMemberType.CREATOR);
-            groupMemberRepository.save(nextCreator);
+            if (otherActiveMembers.isEmpty()) {
+                group.setIsActive(false);
+                readingGroupRepository.save(group);
+            } else {
+                GroupMemberEntity nextCreator =
+                        otherActiveMembers.stream()
+                                .min(Comparator.comparing(
+                                        GroupMemberEntity::getJoinedAt
+                                ))
+                                .orElseThrow();
 
-            group.setCreatedBy(nextCreator.getUser());
-            readingGroupRepository.save(group);
+                nextCreator.setMemberType(GroupMemberType.CREATOR);
+                groupMemberRepository.save(nextCreator);
+
+                group.setCreatedBy(nextCreator.getUser());
+                readingGroupRepository.save(group);
+            }
         }
 
+        membership.setGroupChapterProgress(null);
+        membership.setGroupProgressUpdatedAt(null);
         membership.setStatus(GroupMemberStatus.LEFT);
+
         groupMemberRepository.save(membership);
+    }
+
+    @Override
+    @Transactional
+    public GroupMemberResponseDto updateGroupChapterProgress(
+            UUID groupId,
+            Integer chapterProgress
+    ) {
+        ReadingGroupEntity group = findGroupByIdExternal(groupId);
+        UserEntity authenticatedUser = getAuthenticatedUser();
+
+        if (!Boolean.TRUE.equals(group.getIsActive())) {
+            throw new BadRequestException(
+                    "Reading group is inactive"
+            );
+        }
+
+        if (group.getBook() == null) {
+            throw new BadRequestException(
+                    "Group chapter progress is only available for book groups"
+            );
+        }
+
+        if (group.getChapterReferenceTotal() == null) {
+            throw new BadRequestException(
+                    "This group does not have a chapter reference"
+            );
+        }
+
+        if (chapterProgress == null || chapterProgress <= 0) {
+            throw new BadRequestException(
+                    "Chapter progress must be greater than 0"
+            );
+        }
+
+        if (chapterProgress > group.getChapterReferenceTotal()) {
+            throw new BadRequestException(
+                    "Chapter progress cannot exceed the group's chapter reference total"
+            );
+        }
+
+        GroupMemberEntity membership =
+                groupMemberRepository
+                        .findByGroupIdExternalAndUserIdExternal(
+                                groupId,
+                                authenticatedUser.getIdExternal()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Group membership not found"
+                                )
+                        );
+
+        if (membership.getStatus() != GroupMemberStatus.ACTIVE) {
+            throw new AccessDeniedException(
+                    "Only active group members can update their group progress"
+            );
+        }
+
+        membership.setGroupChapterProgress(chapterProgress);
+        membership.setGroupProgressUpdatedAt(LocalDateTime.now());
+
+        GroupMemberEntity updated =
+                groupMemberRepository.save(membership);
+
+        return groupMemberMapper.toResponseDto(updated);
     }
 
     private void validateCanInviteMembers(

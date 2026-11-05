@@ -46,6 +46,7 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
     @Transactional
     public ReadingGroupResponseDto createGroup(ReadingGroupRequestDto dto) {
         validateContent(dto.bookId(), dto.storyId());
+        validateChapterReference(dto);
 
         UserEntity authenticatedUser = getAuthenticatedUser();
         String normalizedName = normalizeName(dto.name());
@@ -64,7 +65,20 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
         validateUniqueActiveGroupName(normalizedName, dto.bookId(), dto.storyId());
 
         ReadingGroupEntity entity = mapper.toEntity(dto);
+
         entity.setName(normalizedName);
+
+        entity.setEditionReference(
+                dto.editionReference() == null
+                        || dto.editionReference().isBlank()
+                        ? null
+                        : dto.editionReference().trim()
+        );
+
+        entity.setChapterReferenceTotal(
+                dto.chapterReferenceTotal()
+        );
+
         entity.setCreatedBy(authenticatedUser);
         entity.setIsActive(Boolean.TRUE);
         entity.setBook(book);
@@ -307,5 +321,34 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
         }
 
         return user;
+    }
+
+    private void validateChapterReference(ReadingGroupRequestDto dto) {
+
+        boolean isBookGroup = dto.bookId() != null;
+        boolean isStoryGroup = dto.storyId() != null;
+
+        if (isStoryGroup) {
+            if (dto.chapterReferenceTotal() != null
+                    || (dto.editionReference() != null
+                    && !dto.editionReference().isBlank())) {
+
+                throw new BadRequestException(
+                        "Chapter and edition references are only allowed for book groups"
+                );
+            }
+
+            return;
+        }
+
+        if (isBookGroup && dto.chapterReferenceTotal() == null) {
+            return;
+        }
+
+        if (isBookGroup && dto.chapterReferenceTotal() <= 0) {
+            throw new BadRequestException(
+                    "Chapter reference total must be greater than 0"
+            );
+        }
     }
 }

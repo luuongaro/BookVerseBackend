@@ -53,7 +53,7 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
 
         validateContentAssociation(requestDto);
         validateProgress(requestDto);
-        validateStoryChapterProgress(requestDto);
+        validateProgressConsistency(requestDto);
 
         UserEntity authenticatedUser = getAuthenticatedUserWithSubscription();
 
@@ -158,7 +158,7 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
 
         validateContentAssociation(requestDto);
         validateProgress(requestDto);
-        validateStoryChapterProgress(requestDto);
+        validateProgressConsistency(requestDto);
 
         ReadingStatusEntity entity = findReadingStatusByIdExternal(idExternal);
         UserEntity authenticatedUser = getAuthenticatedUserWithSubscription();
@@ -196,6 +196,7 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
         entity.setStatus(requestDto.status());
         entity.setProgressType(requestDto.progressType());
         entity.setProgressValue(requestDto.progressValue());
+        entity.setProgressTotal(requestDto.progressTotal());
         entity.setStartedAt(requestDto.startedAt());
         entity.setFinishedAt(requestDto.finishedAt());
 
@@ -244,6 +245,13 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
         }
 
         if (!hasType) {
+
+            if (requestDto.progressTotal() != null) {
+                throw new BadRequestException(
+                        "progressTotal cannot be provided without reading progress"
+                );
+            }
+
             return;
         }
 
@@ -253,39 +261,87 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
             );
         }
 
-        if (
-                requestDto.progressType() == ProgressType.PERCENTAGE
-                        && requestDto.progressValue() > 100
-        ) {
+        if (requestDto.progressType() == ProgressType.PERCENTAGE
+                && requestDto.progressValue() > 100) {
             throw new BadRequestException(
                     "Percentage progress cannot exceed 100"
             );
         }
+
+        validateProgressTotal(requestDto);
     }
 
-    private void validateStoryChapterProgress(
+    private void validateProgressTotal(
             ReadingStatusRequestDto requestDto
     ) {
 
-        if (
-                requestDto.storyId() == null
-                        || requestDto.progressType() != ProgressType.CHAPTER
-        ) {
+        boolean isBook =
+                requestDto.bookId() != null;
+
+        boolean isChapterProgress =
+                requestDto.progressType() == ProgressType.CHAPTER;
+
+        if (isBook && isChapterProgress) {
+
+            if (requestDto.progressTotal() == null) {
+                throw new BadRequestException(
+                        "progressTotal is required when tracking book progress by chapter"
+                );
+            }
+
+            if (requestDto.progressTotal() <= 0) {
+                throw new BadRequestException(
+                        "progressTotal must be greater than 0"
+                );
+            }
+
+            if (requestDto.progressValue() > requestDto.progressTotal()) {
+                throw new BadRequestException(
+                        "Current chapter cannot exceed total chapters"
+                );
+            }
+
             return;
         }
 
-        chapterRepository
-                .findByStoryIdExternalAndChapterNumber(
-                        requestDto.storyId(),
-                        requestDto.progressValue()
-                )
-                .orElseThrow(() ->
-                        new BadRequestException(
-                                "Chapter "
-                                        + requestDto.progressValue()
-                                        + " does not exist for this story"
-                        )
-                );
+        if (requestDto.progressTotal() != null) {
+            throw new BadRequestException(
+                    "progressTotal is only allowed for chapter-based book progress"
+            );
+        }
+    }
+
+    private void validateProgressConsistency(
+            ReadingStatusRequestDto requestDto
+    ) {
+        boolean hasProgress =
+                requestDto.progressType() != null
+                        && requestDto.progressValue() != null;
+
+        if (requestDto.status() == ReadingStatusEnum.WANT_TO_READ
+                && hasProgress) {
+            throw new BadRequestException(
+                    "WANT_TO_READ cannot have reading progress"
+            );
+        }
+
+        if (requestDto.status() == ReadingStatusEnum.FINISHED
+                && !hasProgress) {
+            throw new BadRequestException(
+                    "FINISHED must include reading progress"
+            );
+        }
+
+        if (!hasProgress) {
+            return;
+        }
+
+        if (requestDto.progressType() == ProgressType.PERCENTAGE) {
+            validatePercentageConsistency(requestDto);
+            return;
+        }
+
+        validateChapterConsistency(requestDto);
     }
 
     private void validateStoryReadingRules(
@@ -548,4 +604,68 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
                 );
     }
 
+    private void validatePercentageConsistency(
+            ReadingStatusRequestDto requestDto
+    ) {
+        if (requestDto.status() == ReadingStatusEnum.FINISHED
+                && requestDto.progressValue() != 100) {
+            throw new BadRequestException(
+                    "FINISHED with percentage progress requires 100 percent"
+            );
+        }
+
+        if (requestDto.status() != ReadingStatusEnum.FINISHED
+                && requestDto.progressValue() == 100) {
+            throw new BadRequestException(
+                    "A progress of 100 percent requires FINISHED status"
+            );
+        }
+    }
+
+    private void validateChapterConsistency(
+            ReadingStatusRequestDto requestDto
+    ) {
+        if (requestDto.storyId() != null) {
+            validateStoryChapterProgress(requestDto);
+        }
+    }
+
+    private void validateStoryChapterProgress(
+            ReadingStatusRequestDto requestDto
+    ) {
+        chapterRepository
+                .findByStoryIdExternalAndChapterNumberAndDeletedFalseAndPublishedTrue(
+                        requestDto.storyId(),
+                        requestDto.progressValue()
+                )
+                .orElseThrow(() ->
+                        new BadRequestException(
+                                "Published chapter "
+                                        + requestDto.progressValue()
+                                        + " does not exist for this story"
+                        )
+                );
+
+        if (requestDto.status() != ReadingStatusEnum.FINISHED) {
+            return;
+        }
+
+        int lastPublishedChapter =
+                chapterRepository
+                        .findTopByStoryIdExternalAndDeletedFalseAndPublishedTrueOrderByChapterNumberDesc(
+                                requestDto.storyId()
+                        )
+                        .map(chapter -> chapter.getChapterNumber())
+                        .orElseThrow(() ->
+                                new BadRequestException(
+                                        "The story has no published chapters"
+                                )
+                        );
+
+        if (!requestDto.progressValue().equals(lastPublishedChapter)) {
+            throw new BadRequestException(
+                    "A finished story must be recorded at its last published chapter"
+            );
+        }
+    }
 }

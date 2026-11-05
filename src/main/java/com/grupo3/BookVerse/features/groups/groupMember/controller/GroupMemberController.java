@@ -3,6 +3,7 @@ package com.grupo3.BookVerse.features.groups.groupMember.controller;
 import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberRequestDto;
 import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberResponseDto;
 import com.grupo3.BookVerse.features.groups.groupMember.service.GroupMemberService;
+import com.grupo3.BookVerse.features.groups.groupProgress.dto.GroupMemberProgressRequestDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -137,6 +138,56 @@ public class GroupMemberController {
                 groupMemberService.getActiveMembershipsByUserId(userId)
         );
     }
+
+    @PutMapping("/group/{groupId}/progress")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Update own chapter progress within a reading group",
+            description = """
+                Updates the authenticated member's chapter progress
+                according to the chapter reference defined by a book group.
+                """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Group chapter progress updated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid chapter progress or group reference",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "User is not an active member",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Reading group or membership not found",
+                    content = @Content
+            )
+    })
+    public ResponseEntity<GroupMemberResponseDto> updateGroupChapterProgress(
+            @PathVariable UUID groupId,
+            @Valid @RequestBody GroupMemberProgressRequestDto requestDto
+    ) {
+
+        return ResponseEntity.ok(
+                groupMemberService.updateGroupChapterProgress(
+                        groupId,
+                        requestDto.chapterProgress()
+                )
+        );
+    }
+
 
     @DeleteMapping("/group/{groupId}/user/{userId}")
     @PreAuthorize("isAuthenticated()")

@@ -6,17 +6,15 @@ import java.util.UUID;
 public record ReadingGroupResponseDto(
 
         UUID idExternal,
-
         UUID bookId,
-
         UUID storyId,
-
         UUID createdByUserId,
-
         String name,
 
-        Boolean isActive,
+        String editionReference,
+        Integer chapterReferenceTotal,
 
+        Boolean isActive,
         LocalDateTime createdAt
 
 ) {
