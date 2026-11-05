@@ -159,6 +159,22 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
 
         validateUniqueActiveGroupNameForUpdate(entity, normalizedName);
 
+        if (dto.totalChapters() != null) {
+            if (entity.getBook() == null) {
+                throw new BadRequestException(
+                        "Total chapters can only be configured for book groups"
+                );
+            }
+
+            if (dto.totalChapters() <= 0) {
+                throw new BadRequestException(
+                        "Total chapters must be greater than 0"
+                );
+            }
+
+            entity.setTotalChapters(dto.totalChapters());
+        }
+
         entity.setName(normalizedName);
 
         ReadingGroupEntity updated = repository.save(entity);

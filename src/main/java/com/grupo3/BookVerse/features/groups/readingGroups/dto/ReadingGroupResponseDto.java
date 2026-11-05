@@ -17,7 +17,9 @@ public record ReadingGroupResponseDto(
 
         Boolean isActive,
 
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+
+        Integer totalChapters
 
 ) {
 }
