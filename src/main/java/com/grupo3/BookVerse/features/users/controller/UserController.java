@@ -1,5 +1,6 @@
 package com.grupo3.BookVerse.features.users.controller;
 
+import com.grupo3.BookVerse.features.users.dto.AccountDeactivationRequestDto;
 import com.grupo3.BookVerse.features.users.dto.UserResponseDto;
 import com.grupo3.BookVerse.features.users.dto.UserRolesUpdateRequestDto;
 import com.grupo3.BookVerse.features.users.dto.UserUpdateRequestDto;
@@ -146,6 +147,26 @@ public class UserController {
             @PathVariable UUID idExternal
     ) {
         userService.deleteUser(idExternal);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Deactivate own account",
+            description = "Deactivates the authenticated user's account.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Account deactivated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid deactivation request", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Account cannot be deactivated", content = @Content)
+    })
+    public ResponseEntity<Void> deactivateOwnAccount(
+            @Valid @RequestBody AccountDeactivationRequestDto dto
+    ) {
+        userService.deactivateOwnAccount(dto);
         return ResponseEntity.noContent().build();
     }
 }

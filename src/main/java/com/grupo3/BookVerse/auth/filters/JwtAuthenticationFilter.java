@@ -52,6 +52,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UserDetails userDetails =
                         userDetailsService.loadUserByUsername(email);
 
+            if (!userDetails.isEnabled()) {
+                    writeUnauthorizedResponse(
+                            response,
+                            request,
+                            "User account is inactive"
+                    );
+                    return;
+                }
+
                 if (jwtService.isTokenValid(jwt, userDetails)) {
 
                     UsernamePasswordAuthenticationToken authToken =
