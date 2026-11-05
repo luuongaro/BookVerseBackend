@@ -21,6 +21,7 @@ public interface ReadingGroupMapper {
     @Mapping(target = "goals", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "isActive", ignore = true)
+    @Mapping(target = "totalChapters", ignore = true)
     ReadingGroupEntity toEntity(ReadingGroupRequestDto dto);
 
     @Mapping(target = "bookId", source = "book.idExternal")

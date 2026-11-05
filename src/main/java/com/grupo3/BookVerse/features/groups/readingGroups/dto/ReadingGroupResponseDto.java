@@ -12,7 +12,7 @@ public record ReadingGroupResponseDto(
         String name,
 
         String editionReference,
-        Integer chapterReferenceTotal,
+        Integer totalChapters,
 
         Boolean isActive,
         LocalDateTime createdAt

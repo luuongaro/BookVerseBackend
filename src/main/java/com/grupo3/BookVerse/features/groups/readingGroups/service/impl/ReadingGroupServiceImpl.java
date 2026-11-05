@@ -75,8 +75,8 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
                         : dto.editionReference().trim()
         );
 
-        entity.setChapterReferenceTotal(
-                dto.chapterReferenceTotal()
+        entity.setTotalChapters(
+                dto.totalChapters()
         );
 
         entity.setCreatedBy(authenticatedUser);
@@ -323,31 +323,42 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
         return user;
     }
 
-    private void validateChapterReference(ReadingGroupRequestDto dto) {
-
+    private void validateChapterReference(
+            ReadingGroupRequestDto dto
+    ) {
         boolean isBookGroup = dto.bookId() != null;
         boolean isStoryGroup = dto.storyId() != null;
 
-        if (isStoryGroup) {
-            if (dto.chapterReferenceTotal() != null
-                    || (dto.editionReference() != null
-                    && !dto.editionReference().isBlank())) {
+        boolean hasEditionReference =
+                dto.editionReference() != null
+                        && !dto.editionReference().isBlank();
 
+        boolean hasTotalChapters =
+                dto.totalChapters() != null;
+
+        if (isStoryGroup) {
+            if (hasEditionReference || hasTotalChapters) {
                 throw new BadRequestException(
-                        "Chapter and edition references are only allowed for book groups"
+                        "Edition and total chapter references are only allowed for book groups"
                 );
             }
 
             return;
         }
 
-        if (isBookGroup && dto.chapterReferenceTotal() == null) {
+        if (!isBookGroup) {
             return;
         }
 
-        if (isBookGroup && dto.chapterReferenceTotal() <= 0) {
+        if (hasEditionReference && !hasTotalChapters) {
             throw new BadRequestException(
-                    "Chapter reference total must be greater than 0"
+                    "totalChapters is required when an edition reference is provided"
+            );
+        }
+
+        if (hasTotalChapters && dto.totalChapters() <= 0) {
+            throw new BadRequestException(
+                    "Total chapters must be greater than 0"
             );
         }
     }

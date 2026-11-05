@@ -98,11 +98,10 @@ public class GroupProgressServiceImpl implements GroupProgressService {
             ReadingGroupEntity group,
             GroupGoalsEntity goal
     ) {
-
-        if (group.getChapterReferenceTotal() == null
-                || group.getChapterReferenceTotal() <= 0) {
+        if (group.getTotalChapters() == null
+                || group.getTotalChapters() <= 0) {
             throw new BadRequestException(
-                    "Book group does not have a valid chapter reference"
+                    "Book group does not have a valid total chapter reference"
             );
         }
 

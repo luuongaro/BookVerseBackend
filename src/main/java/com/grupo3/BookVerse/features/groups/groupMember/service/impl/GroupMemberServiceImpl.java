@@ -23,7 +23,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -296,7 +295,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             );
         }
 
-        if (group.getChapterReferenceTotal() == null) {
+        if (group.getTotalChapters() == null) {
             throw new BadRequestException(
                     "This group does not have a chapter reference"
             );
@@ -308,9 +307,9 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             );
         }
 
-        if (chapterProgress > group.getChapterReferenceTotal()) {
+        if (chapterProgress > group.getTotalChapters()) {
             throw new BadRequestException(
-                    "Chapter progress cannot exceed the group's chapter reference total"
+                    "Chapter progress cannot exceed the group's total chapter reference"
             );
         }
 

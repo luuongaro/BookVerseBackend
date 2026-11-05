@@ -111,7 +111,8 @@ class ReadingGroupServiceImplTest {
                         null,
                         "Fantasy Readers",
                         true,
-                        null
+                        null,
+                        0
                 );
 
         when(bookRepository.findByIdExternal(bookId))
@@ -334,7 +335,8 @@ class ReadingGroupServiceImplTest {
 
         UpdateReadingGroupRequestDto request =
                 new UpdateReadingGroupRequestDto(
-                        "Updated Group"
+                        "Updated Group",
+                        12
                 );
 
         BookEntity book = new BookEntity();

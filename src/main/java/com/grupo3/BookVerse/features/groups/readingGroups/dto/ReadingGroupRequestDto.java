@@ -16,8 +16,8 @@ public record ReadingGroupRequestDto(
 
         String editionReference,
 
-        @Positive(message = "chapterReferenceTotal must be greater than 0")
-        Integer chapterReferenceTotal,
+        @Positive(message = "totalChapters must be greater than 0")
+        Integer totalChapters,
 
         Boolean isActive
 

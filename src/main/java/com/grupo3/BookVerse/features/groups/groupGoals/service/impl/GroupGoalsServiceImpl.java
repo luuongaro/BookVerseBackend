@@ -148,14 +148,14 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
         if (group.getBook() != null
                 && requestDto.goalType() == GoalType.CHAPTER) {
 
-            if (group.getChapterReferenceTotal() == null) {
+            if (group.getTotalChapters() == null) {
                 throw new BadRequestException(
                         "Book groups require a chapter reference to define CHAPTER goals"
                 );
             }
 
             if (requestDto.targetProgress()
-                    > group.getChapterReferenceTotal()) {
+                    > group.getTotalChapters()) {
 
                 throw new BadRequestException(
                         "Chapter target cannot exceed the group's chapter reference total"

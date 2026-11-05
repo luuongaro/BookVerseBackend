@@ -412,6 +412,7 @@ class GroupMemberServiceImplTest {
 
         UserEntity otherUser = new UserEntity();
         otherUser.setIdExternal(UUID.randomUUID());
+        otherUser.setStatus(UserStatus.ACTIVE);
 
         GroupMemberEntity nextCreator = new GroupMemberEntity();
         nextCreator.setStatus(GroupMemberStatus.ACTIVE);
@@ -453,9 +454,9 @@ class GroupMemberServiceImplTest {
                 () -> service.leaveGroup(groupId));
     }
 
-    // Verify exception when the creator tries to leave as the only active member
+    // Verify group is deactivated when creator leaves as the only active member
     @Test
-    void leaveGroup_shouldThrowAccessDenied_whenCreatorIsOnlyActiveMember() {
+    void leaveGroup_shouldDeactivateGroup_whenCreatorIsOnlyActiveMember() {
         GroupMemberEntity creatorMembership = new GroupMemberEntity();
         creatorMembership.setStatus(GroupMemberStatus.ACTIVE);
         creatorMembership.setMemberType(GroupMemberType.CREATOR);
@@ -471,7 +472,11 @@ class GroupMemberServiceImplTest {
                 .findByGroupIdExternalAndStatus(groupId, GroupMemberStatus.ACTIVE))
                 .thenReturn(List.of(creatorMembership));
 
-        assertThrows(AccessDeniedException.class,
-                () -> service.leaveGroup(groupId));
+        service.leaveGroup(groupId);
+
+        assertFalse(group.getIsActive());
+        assertEquals(GroupMemberStatus.LEFT, creatorMembership.getStatus());
+        verify(readingGroupRepository).save(group);
+        verify(groupMemberRepository).save(creatorMembership);
     }
 }
