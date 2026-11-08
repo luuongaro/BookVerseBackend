@@ -27,6 +27,10 @@ import com.grupo3.BookVerse.features.status.repository.ReadingStatusRepository;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -133,6 +137,25 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
     }
 
     @Override
+    @Transactional
+    public void updateShelfOrder(List<UUID> ids) {
+        if (ids == null || ids.isEmpty() || ids.size() > 1000 || ids.stream().anyMatch(java.util.Objects::isNull) || new HashSet<>(ids).size() != ids.size()) {
+            throw new BadRequestException("Invalid shelf order");
+        }
+        UserEntity user = getAuthenticatedUser();
+        Map<UUID, ReadingStatusEntity> owned = readingStatusRepository.findByUserIdExternal(user.getIdExternal())
+                .stream().collect(Collectors.toMap(ReadingStatusEntity::getIdExternal, Function.identity()));
+        if (!owned.keySet().containsAll(ids)) throw new AccessDeniedException("Reading status is not owned by the authenticated user");
+        ReadingStatusEntity first = owned.get(ids.get(0));
+        boolean books = first.getBook() != null;
+        if (ids.stream().map(owned::get).anyMatch(item -> item.getStatus() != first.getStatus() || (item.getBook() != null) != books)) {
+            throw new BadRequestException("All readings must belong to the same shelf");
+        }
+        for (int index = 0; index < ids.size(); index++) owned.get(ids.get(index)).setShelfPosition(index);
+        readingStatusRepository.saveAll(ids.stream().map(owned::get).toList());
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ReadingStatusResponseDto> getReadingStatusesByUser(
             UUID userId
@@ -189,10 +212,14 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
                 entity.getIdExternal()
         );
 
+        if (entity.getStatus() != requestDto.status() || !java.util.Objects.equals(
+                entity.getBook() == null ? null : entity.getBook().getIdExternal(), requestDto.bookId()) || !java.util.Objects.equals(
+                entity.getStory() == null ? null : entity.getStory().getIdExternal(), requestDto.storyId())) {
+            entity.setShelfPosition(null);
+        }
         entity.setUser(authenticatedUser);
         entity.setBook(book);
         entity.setStory(story);
-
         entity.setStatus(requestDto.status());
         entity.setProgressType(requestDto.progressType());
         entity.setProgressValue(requestDto.progressValue());

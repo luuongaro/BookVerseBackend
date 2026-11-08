@@ -2,6 +2,7 @@ package com.grupo3.BookVerse.features.status.controller;
 
 import com.grupo3.BookVerse.features.status.dto.ReadingStatusRequestDto;
 import com.grupo3.BookVerse.features.status.dto.ReadingStatusResponseDto;
+import com.grupo3.BookVerse.features.status.dto.ShelfOrderRequest;
 import com.grupo3.BookVerse.features.status.service.ReadingStatusService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -89,6 +90,13 @@ public class ReadingStatusController {
     })
     public ResponseEntity<List<ReadingStatusResponseDto>> getMyReadingStatuses() {
         return ResponseEntity.ok(readingStatusService.getMyReadingStatuses());
+    }
+
+    @PutMapping("/me/shelf-order")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> updateShelfOrder(@Valid @RequestBody ShelfOrderRequest request) {
+        readingStatusService.updateShelfOrder(request.readingStatusIds());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{idExternal}")

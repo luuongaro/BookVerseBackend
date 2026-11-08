@@ -18,6 +18,7 @@ public interface ReadingStatusMapper {
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "book", ignore = true)
     @Mapping(target = "story", ignore = true)
+    @Mapping(target = "shelfPosition", ignore = true)
     ReadingStatusEntity toEntity(ReadingStatusRequestDto dto);
 
     @Mapping(target = "userId", source = "user.idExternal")

@@ -21,6 +21,8 @@ public interface ReadingStatusService {
 
     List<ReadingStatusResponseDto> getMyReadingStatuses();
 
+    void updateShelfOrder(List<UUID> readingStatusIds);
+
     List<ReadingStatusResponseDto> getReadingStatusesByUser(
             UUID userId
     );
