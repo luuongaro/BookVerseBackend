@@ -53,6 +53,9 @@ public class ReadingStatusEntity {
 
     @Column(name = "progress_total")
     private Integer progressTotal;
+
+    @Column(name = "shelf_position")
+    private Integer shelfPosition;
     
     @Column(name = "started_at")
     private LocalDateTime startedAt;

@@ -70,6 +70,36 @@ class ReadingStatusServiceImplTest {
     }
 
     @Test
+    void savesShelfPositionsForAuthenticatedUsersReadings() {
+        UserEntity user = buildUser(1L, "reader@mail.com", "ROLE_USER", SubscriptionType.FREE);
+        authenticateAs(user);
+        ReadingStatusEntity first = ReadingStatusEntity.builder().idExternal(UUID.randomUUID()).user(user)
+                .book(BookEntity.builder().build()).status(ReadingStatusEnum.IN_PROGRESS).build();
+        ReadingStatusEntity second = ReadingStatusEntity.builder().idExternal(UUID.randomUUID()).user(user)
+                .book(BookEntity.builder().build()).status(ReadingStatusEnum.IN_PROGRESS).build();
+        when(readingStatusRepository.findByUserIdExternal(user.getIdExternal())).thenReturn(List.of(first, second));
+        readingStatusService.updateShelfOrder(List.of(second.getIdExternal(), first.getIdExternal()));
+        assertEquals(0, second.getShelfPosition());
+        assertEquals(1, first.getShelfPosition());
+        verify(readingStatusRepository).saveAll(any());
+    }
+
+    @Test
+    void rejectsOtherUsersAndMixedShelvesWithoutSaving() {
+        UserEntity user = buildUser(1L, "reader@mail.com", "ROLE_USER", SubscriptionType.FREE);
+        authenticateAs(user);
+        ReadingStatusEntity first = ReadingStatusEntity.builder().idExternal(UUID.randomUUID()).user(user)
+                .book(BookEntity.builder().build()).status(ReadingStatusEnum.IN_PROGRESS).build();
+        ReadingStatusEntity second = ReadingStatusEntity.builder().idExternal(UUID.randomUUID()).user(user)
+                .book(BookEntity.builder().build()).status(ReadingStatusEnum.FINISHED).build();
+        when(readingStatusRepository.findByUserIdExternal(user.getIdExternal())).thenReturn(List.of(first, second));
+        assertThrows(AccessDeniedException.class, () -> readingStatusService.updateShelfOrder(List.of(first.getIdExternal(), UUID.randomUUID())));
+        assertThrows(BadRequestException.class, () -> readingStatusService.updateShelfOrder(List.of(first.getIdExternal(), second.getIdExternal())));
+        assertThrows(BadRequestException.class, () -> readingStatusService.updateShelfOrder(List.of(first.getIdExternal(), first.getIdExternal())));
+        verify(readingStatusRepository, never()).saveAll(any());
+    }
+
+    @Test
     void shouldCreateReadingStatusForBook() {
         UUID bookId = UUID.randomUUID();
 
