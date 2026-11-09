@@ -11,6 +11,9 @@ import com.grupo3.BookVerse.features.groups.groupComment.repository.GroupComment
 import com.grupo3.BookVerse.features.groups.groupComment.service.GroupCommentService;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
 import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleEntity;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleStatus;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.repository.GroupReadingCycleRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.status.domain.ProgressType;
@@ -39,17 +42,24 @@ public class GroupCommentServiceImpl implements GroupCommentService {
     private final UserRepository userRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final ReadingStatusRepository readingStatusRepository;
+    private final GroupReadingCycleRepository groupReadingCycleRepository;
 
     @Override
     @Transactional
     public GroupCommentResponseDto createComment(UUID groupId, GroupCommentRequestDto requestDto) {
         ReadingGroupEntity group = findGroupByIdExternal(groupId);
-        validateBookOnlyGroup(group);
+        GroupReadingCycleEntity activeCycle = findActiveCycle(groupId);
+
+        validateBookOnlyCycle(activeCycle);
 
         UserEntity authenticatedUser = getAuthenticatedUser();
         validateActiveMembership(groupId, authenticatedUser);
 
-        Integer currentProgress = getCurrentBookProgressPercent(group, authenticatedUser);
+        Integer currentProgress =
+                getCurrentBookProgressPercent(
+                        activeCycle,
+                        authenticatedUser
+                );
 
         if (requestDto.getProgressPercent() > currentProgress) {
             throw new BadRequestException("You cannot comment beyond your current reading progress");
@@ -67,13 +77,21 @@ public class GroupCommentServiceImpl implements GroupCommentService {
     @Override
     @Transactional(readOnly = true)
     public List<GroupCommentResponseDto> getVisibleCommentsByGroupId(UUID groupId) {
-        ReadingGroupEntity group = findGroupByIdExternal(groupId);
-        validateBookOnlyGroup(group);
+        findGroupByIdExternal(groupId);
+
+        GroupReadingCycleEntity activeCycle =
+                findActiveCycle(groupId);
+
+        validateBookOnlyCycle(activeCycle);
 
         UserEntity authenticatedUser = getAuthenticatedUser();
         validateActiveMembership(groupId, authenticatedUser);
 
-        Integer currentProgress = getCurrentBookProgressPercent(group, authenticatedUser);
+        Integer currentProgress =
+                getCurrentBookProgressPercent(
+                        activeCycle,
+                        authenticatedUser
+                );
 
         List<GroupCommentEntity> visibleComments =
                 groupCommentRepository.findByGroupIdExternalAndStatusAndProgressPercentLessThanEqualOrderByCreatedAtAsc(
@@ -136,8 +154,18 @@ public class GroupCommentServiceImpl implements GroupCommentService {
         }
 
         if (!isAuthor && !isAdminOrModerator) {
-            validateBookOnlyGroup(comment.getGroup());
-            Integer currentProgress = getCurrentBookProgressPercent(comment.getGroup(), authenticatedUser);
+            GroupReadingCycleEntity activeCycle =
+                    findActiveCycle(
+                            comment.getGroup().getIdExternal()
+                    );
+
+            validateBookOnlyCycle(activeCycle);
+
+            Integer currentProgress =
+                    getCurrentBookProgressPercent(
+                            activeCycle,
+                            authenticatedUser
+                    );
 
             if (comment.getProgressPercent() > currentProgress) {
                 throw new AccessDeniedException("You do not have permission to view this comment");
@@ -190,23 +218,36 @@ public class GroupCommentServiceImpl implements GroupCommentService {
         }
     }
 
-    private void validateBookOnlyGroup(ReadingGroupEntity group) {
-        if (group.getBook() == null || group.getStory() != null) {
-            throw new BadRequestException("Group comments are currently supported only for book-based reading groups");
+    private void validateBookOnlyCycle(
+            GroupReadingCycleEntity cycle
+    ) {
+        if (cycle.getBook() == null
+                || cycle.getStory() != null) {
+            throw new BadRequestException(
+                    "Group comments are currently supported only for book-based reading cycles"
+            );
         }
     }
 
-    private Integer getCurrentBookProgressPercent(ReadingGroupEntity group, UserEntity user) {
-        ReadingStatusEntity readingStatus = readingStatusRepository
-                .findByUserIdExternalAndBookIdExternal(
-                        user.getIdExternal(),
-                        group.getBook().getIdExternal()
-                )
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Reading status not found for the authenticated user and the group's book"
-                ));
+    private Integer getCurrentBookProgressPercent(
+            GroupReadingCycleEntity cycle,
+            UserEntity user
+    ) {
+        ReadingStatusEntity readingStatus =
+                readingStatusRepository
+                        .findByUserIdExternalAndBookIdExternal(
+                                user.getIdExternal(),
+                                cycle.getBook().getIdExternal()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Reading status not found for the authenticated user and the active cycle's book"
+                                )
+                        );
 
-        if (readingStatus.getProgressType() != ProgressType.PERCENTAGE || readingStatus.getProgressValue() == null) {
+        if (readingStatus.getProgressType()
+                != ProgressType.PERCENTAGE
+                || readingStatus.getProgressValue() == null) {
             throw new BadRequestException(
                     "A percentage-based reading status is required to interact with book group comments"
             );
@@ -218,8 +259,9 @@ public class GroupCommentServiceImpl implements GroupCommentService {
     private boolean isAdminOrModerator(UserEntity user) {
         return user.getAuthorities().stream()
                 .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                                || authority.getAuthority().equals("ROLE_MODERATOR"));
+                        "ROLE_ADMIN".equals(authority.getAuthority())
+                                || "ROLE_MODERATOR".equals(authority.getAuthority())
+                );
     }
 
     private GroupCommentEntity findCommentByIdExternal(UUID commentId) {
@@ -243,6 +285,21 @@ public class GroupCommentServiceImpl implements GroupCommentService {
                 ));
     }
 
+    private GroupReadingCycleEntity findActiveCycle(
+            UUID groupId
+    ) {
+        return groupReadingCycleRepository
+                .findByGroup_IdExternalAndStatus(
+                        groupId,
+                        GroupReadingCycleStatus.ACTIVE
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Active reading cycle not found for group: "
+                                        + groupId
+                        )
+                );
+    }
     private UserEntity getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 

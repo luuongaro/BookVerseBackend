@@ -7,21 +7,35 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface ReadingGroupRepository extends JpaRepository<ReadingGroupEntity, Long> {
+public interface ReadingGroupRepository
+        extends JpaRepository<ReadingGroupEntity, Long> {
 
-    Optional<ReadingGroupEntity> findByIdExternal(UUID idExternal);
+    Optional<ReadingGroupEntity> findByIdExternal(
+            UUID idExternal
+    );
 
-    List<ReadingGroupEntity> findByBook_IdExternal(UUID bookId);
+    List<ReadingGroupEntity> findByIsActiveTrue();
 
-    List<ReadingGroupEntity> findByStory_IdExternal(UUID storyId);
+    List<ReadingGroupEntity> findByCreatedBy_IdExternalAndIsActiveTrue(
+            UUID userId
+    );
 
-    List<ReadingGroupEntity> findByCreatedBy_IdExternal(UUID userId);
+    List<ReadingGroupEntity>
+    findDistinctByReadingCycles_Book_IdExternalAndIsActiveTrue(
+            UUID bookId
+    );
 
-    boolean existsByNameIgnoreCaseAndBook_IdExternalAndIsActiveTrue(String name, UUID bookId);
+    List<ReadingGroupEntity>
+    findDistinctByReadingCycles_Story_IdExternalAndIsActiveTrue(
+            UUID storyId
+    );
 
-    boolean existsByNameIgnoreCaseAndStory_IdExternalAndIsActiveTrue(String name, UUID storyId);
+    boolean existsByNameIgnoreCaseAndIsActiveTrue(
+            String name
+    );
 
-    boolean existsByNameIgnoreCaseAndBook_IdExternalAndIsActiveTrueAndIdExternalNot(String name, UUID bookId,  UUID idExternal);
-
-    boolean existsByNameIgnoreCaseAndStory_IdExternalAndIsActiveTrueAndIdExternalNot(String name, UUID storyId,UUID idExternal);
+    boolean existsByNameIgnoreCaseAndIsActiveTrueAndIdExternalNot(
+            String name,
+            UUID idExternal
+    );
 }

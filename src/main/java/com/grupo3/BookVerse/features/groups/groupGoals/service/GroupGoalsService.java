@@ -9,28 +9,38 @@ import java.util.UUID;
 
 public interface GroupGoalsService {
 
+    GroupGoalsResponseDto createGoal(
+            UUID groupId,
+            UUID cycleId,
+            GroupGoalsRequestDto requestDto
+    );
 
-    GroupGoalsResponseDto createGoal(UUID groupId, GroupGoalsRequestDto requestDto);
+    GroupGoalsResponseDto getGoalByIdExternal(
+            UUID groupId,
+            UUID cycleId,
+            UUID goalId
+    );
 
-    GroupGoalsResponseDto getGoalByIdExternal(UUID goalId);
+    List<GroupGoalsResponseDto> getGoalsByCycleId(
+            UUID groupId,
+            UUID cycleId
+    );
 
-    List<GroupGoalsResponseDto> getGoalsByGroupId(UUID groupId);
+    GroupGoalsResponseDto getActiveGoalByCycleId(
+            UUID groupId,
+            UUID cycleId
+    );
 
-    GroupGoalsResponseDto getActiveGoalByGroupId(UUID groupId);
+    GroupGoalsResponseDto changeStatus(
+            UUID groupId,
+            UUID cycleId,
+            UUID goalId,
+            GroupGoalStatusRequestDto requestDto
+    );
 
-    GroupGoalsResponseDto changeStatus(UUID goalId, GroupGoalStatusRequestDto requestDto);
-
-    void cancelGoal(UUID goalId);
-
-    // Additional CRUD methods
-    GroupGoalsResponseDto save(GroupGoalsRequestDto requestDto);
-
-    GroupGoalsResponseDto findById(UUID goalId);
-
-    void delete(UUID goalId);
-
-    List<GroupGoalsResponseDto> findAll();
-
-    GroupGoalsResponseDto findByGroupId(UUID groupId);
-
+    void cancelGoal(
+            UUID groupId,
+            UUID cycleId,
+            UUID goalId
+    );
 }

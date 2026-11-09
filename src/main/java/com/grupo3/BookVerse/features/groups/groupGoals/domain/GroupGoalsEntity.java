@@ -1,5 +1,6 @@
 package com.grupo3.BookVerse.features.groups.groupGoals.domain;
 
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -27,6 +28,10 @@ public class GroupGoalsEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "group_id", nullable = false)
     private ReadingGroupEntity group;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reading_cycle_id")
+    private GroupReadingCycleEntity readingCycle;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "goal_type", nullable = false)

@@ -6,6 +6,13 @@ import java.util.UUID;
 
 public interface GroupProgressService {
 
-    GroupProgressResponseDto calculateProgress(UUID groupId);
+    GroupProgressResponseDto calculateProgress(
+            UUID groupId,
+            UUID cycleId
+    );
 
+    double calculateAveragePercentage(
+            UUID groupId,
+            UUID cycleId
+    );
 }

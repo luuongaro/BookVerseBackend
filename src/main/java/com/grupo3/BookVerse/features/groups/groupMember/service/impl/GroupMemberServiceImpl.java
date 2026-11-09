@@ -11,6 +11,9 @@ import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberResponseD
 import com.grupo3.BookVerse.features.groups.groupMember.mappers.GroupMemberMapper;
 import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
 import com.grupo3.BookVerse.features.groups.groupMember.service.GroupMemberService;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleEntity;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleStatus;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.repository.GroupReadingCycleRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
@@ -37,6 +40,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     private final GroupMemberMapper groupMemberMapper;
     private final ReadingGroupRepository readingGroupRepository;
     private final UserRepository userRepository;
+    private final GroupReadingCycleRepository groupReadingCycleRepository;
 
     @Override
     @Transactional
@@ -280,8 +284,11 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             UUID groupId,
             Integer chapterProgress
     ) {
-        ReadingGroupEntity group = findGroupByIdExternal(groupId);
-        UserEntity authenticatedUser = getAuthenticatedUser();
+        ReadingGroupEntity group =
+                findGroupByIdExternal(groupId);
+
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
 
         if (!Boolean.TRUE.equals(group.getIsActive())) {
             throw new BadRequestException(
@@ -289,27 +296,32 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             );
         }
 
-        if (group.getBook() == null) {
+        GroupReadingCycleEntity activeCycle =
+                findActiveCycle(groupId);
+
+        if (activeCycle.getBook() == null) {
             throw new BadRequestException(
-                    "Group chapter progress is only available for book groups"
+                    "Group chapter progress is only available for book reading cycles"
             );
         }
 
-        if (group.getTotalChapters() == null) {
+        if (activeCycle.getTotalChapters() == null
+                || activeCycle.getTotalChapters() <= 0) {
             throw new BadRequestException(
-                    "This group does not have a chapter reference"
+                    "This reading cycle does not have a valid chapter reference"
             );
         }
 
-        if (chapterProgress == null || chapterProgress <= 0) {
+        if (chapterProgress == null
+                || chapterProgress <= 0) {
             throw new BadRequestException(
                     "Chapter progress must be greater than 0"
             );
         }
 
-        if (chapterProgress > group.getTotalChapters()) {
+        if (chapterProgress > activeCycle.getTotalChapters()) {
             throw new BadRequestException(
-                    "Chapter progress cannot exceed the group's total chapter reference"
+                    "Chapter progress cannot exceed the reading cycle's total chapter reference"
             );
         }
 
@@ -321,23 +333,28 @@ public class GroupMemberServiceImpl implements GroupMemberService {
                         )
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
-                                        "Group membership not found"
+                                        "Group membership not found for authenticated user"
                                 )
                         );
 
         if (membership.getStatus() != GroupMemberStatus.ACTIVE) {
             throw new AccessDeniedException(
-                    "Only active group members can update their group progress"
+                    "Only active group members can update group chapter progress"
             );
         }
 
-        membership.setGroupChapterProgress(chapterProgress);
-        membership.setGroupProgressUpdatedAt(LocalDateTime.now());
+        membership.setGroupChapterProgress(
+                chapterProgress
+        );
 
-        GroupMemberEntity updated =
+        membership.setGroupProgressUpdatedAt(
+                LocalDateTime.now()
+        );
+
+        GroupMemberEntity saved =
                 groupMemberRepository.save(membership);
 
-        return groupMemberMapper.toResponseDto(updated);
+        return groupMemberMapper.toResponseDto(saved);
     }
 
     private void validateCanInviteMembers(
@@ -444,4 +461,19 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         return authenticatedUser;
     }
 
+    private GroupReadingCycleEntity findActiveCycle(
+            UUID groupId
+    ) {
+        return groupReadingCycleRepository
+                .findByGroup_IdExternalAndStatus(
+                        groupId,
+                        GroupReadingCycleStatus.ACTIVE
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Active reading cycle not found for group: "
+                                        + groupId
+                        )
+                );
+    }
 }
