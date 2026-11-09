@@ -2,7 +2,6 @@ package com.grupo3.BookVerse.features.groups.readingGroups.service.impl;
 
 import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
-import com.grupo3.BookVerse.features.books.repository.BookRepository;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberType;
@@ -14,7 +13,6 @@ import com.grupo3.BookVerse.features.groups.readingGroups.dto.UpdateReadingGroup
 import com.grupo3.BookVerse.features.groups.readingGroups.mappers.ReadingGroupMapper;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.service.ReadingGroupService;
-import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

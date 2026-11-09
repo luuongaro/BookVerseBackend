@@ -1,4 +1,8 @@
 package com.grupo3.BookVerse.features.groups.groupProgress.service.impl;
+
+import com.grupo3.BookVerse.common.exception.BadRequestException;
+import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
+import com.grupo3.BookVerse.features.groups.groupGoals.domain.GoalStatus;
 import com.grupo3.BookVerse.features.groups.groupGoals.domain.GoalType;
 import com.grupo3.BookVerse.features.groups.groupGoals.domain.GroupGoalsEntity;
 import com.grupo3.BookVerse.features.groups.groupGoals.repository.GroupGoalsRepository;
@@ -16,9 +20,6 @@ import com.grupo3.BookVerse.features.status.domain.ReadingStatusEntity;
 import com.grupo3.BookVerse.features.status.domain.ReadingStatusEnum;
 import com.grupo3.BookVerse.features.status.repository.ReadingStatusRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
-import com.grupo3.BookVerse.common.exception.BadRequestException;
-import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
-import com.grupo3.BookVerse.features.groups.groupGoals.domain.GoalStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
