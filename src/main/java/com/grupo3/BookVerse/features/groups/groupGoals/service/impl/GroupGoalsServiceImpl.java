@@ -14,6 +14,10 @@ import com.grupo3.BookVerse.features.groups.groupGoals.service.GroupGoalsService
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberType;
 import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
+import com.grupo3.BookVerse.features.groups.groupProgress.service.GroupProgressService;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleEntity;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleStatus;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.repository.GroupReadingCycleRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
@@ -35,198 +39,441 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
     private final GroupGoalsRepository groupGoalsRepository;
     private final GroupGoalsMapper groupGoalsMapper;
     private final ReadingGroupRepository readingGroupRepository;
+    private final GroupReadingCycleRepository groupReadingCycleRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final GroupProgressService groupProgressService;
 
     @Override
     @Transactional
-    public GroupGoalsResponseDto createGoal(UUID groupId, GroupGoalsRequestDto requestDto) {
+    public GroupGoalsResponseDto createGoal(
+            UUID groupId,
+            UUID cycleId,
+            GroupGoalsRequestDto requestDto
+    ) {
         ReadingGroupEntity group = findGroupByIdExternal(groupId);
         validateGroupIsActive(group);
+
+        GroupReadingCycleEntity cycle = findCycle(groupId, cycleId);
+        validateCycleIsActive(cycle);
 
         UserEntity authenticatedUser = getAuthenticatedUser();
         validateCanManageGoals(group, authenticatedUser);
 
-        validateNoActiveGoal(groupId);
-        validateGoalParams(requestDto, group);
+        validateNoActiveGoal(cycleId);
+        validateGoalParams(requestDto, cycle);
 
-        GroupGoalsEntity entity = groupGoalsMapper.toEntity(requestDto);
+        if (requestDto.goalType() == GoalType.PERCENTAGE) {
+            validatePercentageGoal(
+                    groupId,
+                    cycleId,
+                    requestDto.targetProgress()
+            );
+        }
+
+        GroupGoalsEntity entity =
+                groupGoalsMapper.toEntity(requestDto);
+
+        // Relación temporal con el grupo.
+        // Se eliminará cuando termine la migración completa.
         entity.setGroup(group);
+
+        entity.setReadingCycle(cycle);
         entity.setStatus(GoalStatus.ACTIVE);
 
-        GroupGoalsEntity saved = groupGoalsRepository.save(entity);
+        GroupGoalsEntity saved =
+                groupGoalsRepository.save(entity);
+
         return groupGoalsMapper.toResponseDto(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public GroupGoalsResponseDto getGoalByIdExternal(UUID goalId) {
-        GroupGoalsEntity goal = findGoalByIdExternal(goalId);
-        validateGroupIsActive(goal.getGroup());
+    public GroupGoalsResponseDto getGoalByIdExternal(
+            UUID groupId,
+            UUID cycleId,
+            UUID goalId
+    ) {
+        ReadingGroupEntity group =
+                findGroupByIdExternal(groupId);
 
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        validateCanViewGoals(goal.getGroup(), authenticatedUser);
+        validateGroupIsActive(group);
+
+        GroupReadingCycleEntity cycle =
+                findCycle(groupId, cycleId);
+
+        GroupGoalsEntity goal =
+                findGoal(groupId, cycleId, goalId);
+
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
+
+        validateCanViewGoals(
+                cycle.getGroup(),
+                authenticatedUser
+        );
 
         return groupGoalsMapper.toResponseDto(goal);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<GroupGoalsResponseDto> getGoalsByGroupId(UUID groupId) {
-        ReadingGroupEntity group = findGroupByIdExternal(groupId);
+    public List<GroupGoalsResponseDto> getGoalsByCycleId(
+            UUID groupId,
+            UUID cycleId
+    ) {
+        ReadingGroupEntity group =
+                findGroupByIdExternal(groupId);
+
         validateGroupIsActive(group);
 
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        validateCanViewGoals(group, authenticatedUser);
+        GroupReadingCycleEntity cycle =
+                findCycle(groupId, cycleId);
+
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
+
+        validateCanViewGoals(
+                cycle.getGroup(),
+                authenticatedUser
+        );
 
         List<GroupGoalsEntity> goals =
-                groupGoalsRepository.findByGroup_IdExternalOrderByUpdatedAtDesc(groupId);
+                groupGoalsRepository
+                        .findByReadingCycle_IdExternalOrderByUpdatedAtDesc(
+                                cycleId
+                        );
 
         return groupGoalsMapper.toResponseDtoList(goals);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public GroupGoalsResponseDto getActiveGoalByGroupId(UUID groupId) {
-        ReadingGroupEntity group = findGroupByIdExternal(groupId);
+    public GroupGoalsResponseDto getActiveGoalByCycleId(
+            UUID groupId,
+            UUID cycleId
+    ) {
+        ReadingGroupEntity group =
+                findGroupByIdExternal(groupId);
+
         validateGroupIsActive(group);
 
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        validateCanViewGoals(group, authenticatedUser);
+        GroupReadingCycleEntity cycle =
+                findCycle(groupId, cycleId);
 
-        GroupGoalsEntity activeGoal = groupGoalsRepository
-                .findByGroup_IdExternalAndStatus(groupId, GoalStatus.ACTIVE)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Active goal not found for group: " + groupId
-                ));
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
+
+        validateCanViewGoals(
+                cycle.getGroup(),
+                authenticatedUser
+        );
+
+        GroupGoalsEntity activeGoal =
+                groupGoalsRepository
+                        .findByReadingCycle_IdExternalAndStatus(
+                                cycleId,
+                                GoalStatus.ACTIVE
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Active goal not found for reading cycle: "
+                                                + cycleId
+                                )
+                        );
 
         return groupGoalsMapper.toResponseDto(activeGoal);
     }
 
     @Override
     @Transactional
-    public GroupGoalsResponseDto changeStatus(UUID goalId, GroupGoalStatusRequestDto requestDto) {
-        GroupGoalsEntity goal = findGoalByIdExternal(goalId);
-        validateGroupIsActive(goal.getGroup());
+    public GroupGoalsResponseDto changeStatus(
+            UUID groupId,
+            UUID cycleId,
+            UUID goalId,
+            GroupGoalStatusRequestDto requestDto
+    ) {
+        ReadingGroupEntity group =
+                findGroupByIdExternal(groupId);
 
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        validateCanManageGoals(goal.getGroup(), authenticatedUser);
+        validateGroupIsActive(group);
 
-        validateStatusTransition(goal, requestDto.status());
+        GroupReadingCycleEntity cycle =
+                findCycle(groupId, cycleId);
+
+        GroupGoalsEntity goal =
+                findGoal(groupId, cycleId, goalId);
+
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
+
+        validateCanManageGoals(
+                cycle.getGroup(),
+                authenticatedUser
+        );
+
+        validateStatusTransition(
+                goal,
+                requestDto.status()
+        );
 
         goal.setStatus(requestDto.status());
 
-        GroupGoalsEntity saved = groupGoalsRepository.save(goal);
+        GroupGoalsEntity saved =
+                groupGoalsRepository.save(goal);
+
         return groupGoalsMapper.toResponseDto(saved);
     }
 
     @Override
     @Transactional
-    public void cancelGoal(UUID goalId) {
-        GroupGoalsEntity goal = findGoalByIdExternal(goalId);
-        validateGroupIsActive(goal.getGroup());
+    public void cancelGoal(
+            UUID groupId,
+            UUID cycleId,
+            UUID goalId
+    ) {
+        ReadingGroupEntity group =
+                findGroupByIdExternal(groupId);
 
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        validateCanManageGoals(goal.getGroup(), authenticatedUser);
+        validateGroupIsActive(group);
+
+        GroupReadingCycleEntity cycle =
+                findCycle(groupId, cycleId);
+
+        GroupGoalsEntity goal =
+                findGoal(groupId, cycleId, goalId);
+
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
+
+        validateCanManageGoals(
+                cycle.getGroup(),
+                authenticatedUser
+        );
 
         if (goal.getStatus() != GoalStatus.ACTIVE) {
-            throw new BadRequestException("Only active goals can be cancelled");
+            throw new BadRequestException(
+                    "Only active goals can be cancelled"
+            );
         }
 
         goal.setStatus(GoalStatus.CANCELLED);
         groupGoalsRepository.save(goal);
     }
 
-    private void validateGoalParams(GroupGoalsRequestDto requestDto, ReadingGroupEntity group) {
-        if (requestDto.targetProgress() == null || requestDto.targetProgress() <= 0) {
-            throw new BadRequestException("Target progress must be greater than 0");
-        }
-
-        if (requestDto.goalType() == GoalType.PERCENTAGE && requestDto.targetProgress() > 100) {
-            throw new BadRequestException("Percentage target progress cannot exceed 100");
-        }
-
-        if (group.getBook() != null
-                && requestDto.goalType() == GoalType.CHAPTER) {
-
-            if (group.getTotalChapters() == null) {
-                throw new BadRequestException(
-                        "Book groups require a chapter reference to define CHAPTER goals"
-                );
-            }
-
-            if (requestDto.targetProgress()
-                    > group.getTotalChapters()) {
-
-                throw new BadRequestException(
-                        "Chapter target cannot exceed the group's chapter reference total"
-                );
-            }
-        }
-
-        if (group.getStory() != null) {
-            int publishedChapters = group.getStory().getChapters() == null
-                    ? 0
-                    : (int) group.getStory().getChapters().stream()
-                    .filter(chapter -> chapter.isPublished() && !chapter.isDeleted())
-                    .count();
-
-            if (publishedChapters == 0) {
-                throw new BadRequestException(
-                        "Cannot create a goal for a story without published chapters"
-                );
-            }
-
-            if (requestDto.goalType() == GoalType.CHAPTER
-                    && requestDto.targetProgress() > publishedChapters) {
-                throw new BadRequestException(
-                        "Chapter target cannot exceed the number of published story chapters"
-                );
-            }
-        }
-    }
-
-    private void validateNoActiveGoal(UUID groupId) {
-        boolean hasActiveGoal = groupGoalsRepository.existsByGroup_IdExternalAndStatus(
-                groupId,
-                GoalStatus.ACTIVE
-        );
-
-        if (hasActiveGoal) {
+    private void validateGoalParams(
+            GroupGoalsRequestDto requestDto,
+            GroupReadingCycleEntity cycle
+    ) {
+        if (requestDto.targetProgress() == null
+                || requestDto.targetProgress() <= 0) {
             throw new BadRequestException(
-                    "This reading group already has an active goal"
+                    "Target progress must be greater than 0"
+            );
+        }
+
+        if (requestDto.goalType() == GoalType.PERCENTAGE) {
+            if (requestDto.targetProgress() > 100) {
+                throw new BadRequestException(
+                        "Percentage target progress cannot exceed 100"
+                );
+            }
+
+            return;
+        }
+
+        if (requestDto.goalType() != GoalType.CHAPTER) {
+            return;
+        }
+
+        int totalChapters =
+                getTotalChaptersForCycle(cycle);
+
+        if (totalChapters <= 0) {
+            throw new BadRequestException(
+                    "Cannot create a chapter goal without a valid chapter reference"
+            );
+        }
+
+        if (requestDto.targetProgress() > totalChapters) {
+            throw new BadRequestException(
+                    "Chapter target cannot exceed the reading cycle's total chapters"
             );
         }
     }
 
-    private void validateStatusTransition(GroupGoalsEntity goal, GoalStatus newStatus) {
+    private void validatePercentageGoal(
+            UUID groupId,
+            UUID cycleId,
+            Integer requestedTarget
+    ) {
+        double currentAveragePercentage =
+                groupProgressService
+                        .calculateAveragePercentage(
+                                groupId,
+                                cycleId
+                        );
+
+        int highestCompletedTarget =
+                findHighestCompletedPercentageTarget(
+                        cycleId
+                );
+
+        double highestReference =
+                Math.max(
+                        currentAveragePercentage,
+                        highestCompletedTarget
+                );
+
+        int minimumAllowed =
+                (int) Math.floor(highestReference) + 1;
+
+        if (minimumAllowed > 100) {
+            throw new BadRequestException(
+                    "A new percentage goal cannot be created because "
+                            + "the reading cycle has already reached 100%"
+            );
+        }
+
+        if (requestedTarget < minimumAllowed) {
+            throw new BadRequestException(
+                    "Percentage target must be at least "
+                            + minimumAllowed
+                            + "%. Current group progress is "
+                            + formatPercentage(currentAveragePercentage)
+                            + "% and the highest completed percentage goal is "
+                            + highestCompletedTarget
+                            + "%."
+            );
+        }
+    }
+
+    private int findHighestCompletedPercentageTarget(
+            UUID cycleId
+    ) {
+        List<GroupGoalsEntity> completedPercentageGoals =
+                groupGoalsRepository
+                        .findByReadingCycle_IdExternalAndGoalTypeAndStatusOrderByTargetProgressDesc(
+                                cycleId,
+                                GoalType.PERCENTAGE,
+                                GoalStatus.COMPLETED
+                        );
+
+        return completedPercentageGoals.stream()
+                .map(GroupGoalsEntity::getTargetProgress)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(0);
+    }
+
+    private String formatPercentage(double percentage) {
+        return String.format(
+                java.util.Locale.US,
+                "%.2f",
+                percentage
+        );
+    }
+
+    private int getTotalChaptersForCycle(
+            GroupReadingCycleEntity cycle
+    ) {
+        if (cycle.getBook() != null) {
+            if (cycle.getTotalChapters() == null
+                    || cycle.getTotalChapters() <= 0) {
+                throw new BadRequestException(
+                        "Book reading cycle does not have a valid total chapter reference"
+                );
+            }
+
+            return cycle.getTotalChapters();
+        }
+
+        if (cycle.getStory() != null) {
+            if (cycle.getStory().getChapters() == null) {
+                return 0;
+            }
+
+            return (int) cycle.getStory()
+                    .getChapters()
+                    .stream()
+                    .filter(chapter ->
+                            chapter.isPublished()
+                                    && !chapter.isDeleted()
+                    )
+                    .count();
+        }
+
+        throw new BadRequestException(
+                "Reading cycle must be associated with either a book or a story"
+        );
+    }
+
+    private void validateNoActiveGoal(UUID cycleId) {
+        boolean hasActiveGoal =
+                groupGoalsRepository
+                        .existsByReadingCycle_IdExternalAndStatus(
+                                cycleId,
+                                GoalStatus.ACTIVE
+                        );
+
+        if (hasActiveGoal) {
+            throw new BadRequestException(
+                    "This reading cycle already has an active goal"
+            );
+        }
+    }
+
+    private void validateStatusTransition(
+            GroupGoalsEntity goal,
+            GoalStatus newStatus
+    ) {
         if (goal.getStatus() != GoalStatus.ACTIVE) {
             throw new BadRequestException(
                     "Only active goals can change status"
             );
         }
 
-        if (newStatus != GoalStatus.COMPLETED && newStatus != GoalStatus.CANCELLED) {
+        if (newStatus != GoalStatus.COMPLETED
+                && newStatus != GoalStatus.CANCELLED) {
             throw new BadRequestException(
                     "Active goals can only become COMPLETED or CANCELLED"
             );
         }
     }
 
-    private void validateCanManageGoals(ReadingGroupEntity group, UserEntity authenticatedUser) {
+    private void validateCycleIsActive(
+            GroupReadingCycleEntity cycle
+    ) {
+        if (cycle.getStatus()
+                != GroupReadingCycleStatus.ACTIVE) {
+            throw new BadRequestException(
+                    "Goals can only be created for an active reading cycle"
+            );
+        }
+    }
+
+    private void validateCanManageGoals(
+            ReadingGroupEntity group,
+            UserEntity authenticatedUser
+    ) {
         if (isAdminOrModerator(authenticatedUser)) {
             return;
         }
 
-        boolean isCreatorMember = groupMemberRepository
-                .existsByGroupIdExternalAndUserIdExternalAndMemberTypeAndStatus(
-                        group.getIdExternal(),
-                        authenticatedUser.getIdExternal(),
-                        GroupMemberType.CREATOR,
-                        GroupMemberStatus.ACTIVE
-                );
+        boolean isCreatorMember =
+                groupMemberRepository
+                        .existsByGroupIdExternalAndUserIdExternalAndMemberTypeAndStatus(
+                                group.getIdExternal(),
+                                authenticatedUser.getIdExternal(),
+                                GroupMemberType.CREATOR,
+                                GroupMemberStatus.ACTIVE
+                        );
 
-        boolean isOwner = group.getCreatedBy() != null
-                && Objects.equals(group.getCreatedBy().getId(), authenticatedUser.getId());
+        boolean isOwner =
+                group.getCreatedBy() != null
+                        && Objects.equals(
+                        group.getCreatedBy().getId(),
+                        authenticatedUser.getId()
+                );
 
         if (!isCreatorMember && !isOwner) {
             throw new AccessDeniedException(
@@ -235,20 +482,28 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
         }
     }
 
-    private void validateCanViewGoals(ReadingGroupEntity group, UserEntity authenticatedUser) {
+    private void validateCanViewGoals(
+            ReadingGroupEntity group,
+            UserEntity authenticatedUser
+    ) {
         if (isAdminOrModerator(authenticatedUser)) {
             return;
         }
 
-        boolean isActiveMember = groupMemberRepository
-                .existsByGroupIdExternalAndUserIdExternalAndStatus(
-                        group.getIdExternal(),
-                        authenticatedUser.getIdExternal(),
-                        GroupMemberStatus.ACTIVE
-                );
+        boolean isActiveMember =
+                groupMemberRepository
+                        .existsByGroupIdExternalAndUserIdExternalAndStatus(
+                                group.getIdExternal(),
+                                authenticatedUser.getIdExternal(),
+                                GroupMemberStatus.ACTIVE
+                        );
 
-        boolean isOwner = group.getCreatedBy() != null
-                && Objects.equals(group.getCreatedBy().getId(), authenticatedUser.getId());
+        boolean isOwner =
+                group.getCreatedBy() != null
+                        && Objects.equals(
+                        group.getCreatedBy().getId(),
+                        authenticatedUser.getId()
+                );
 
         if (!isActiveMember && !isOwner) {
             throw new AccessDeniedException(
@@ -257,77 +512,91 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
         }
     }
 
-    private void validateGroupIsActive(ReadingGroupEntity group) {
+    private void validateGroupIsActive(
+            ReadingGroupEntity group
+    ) {
         if (!Boolean.TRUE.equals(group.getIsActive())) {
-            throw new BadRequestException("Inactive reading groups cannot manage goals");
+            throw new BadRequestException(
+                    "Inactive reading groups cannot manage goals"
+            );
         }
     }
 
-    private boolean isAdminOrModerator(UserEntity user) {
-        return user.getAuthorities().stream()
+    private boolean isAdminOrModerator(
+            UserEntity user
+    ) {
+        return user.getAuthorities()
+                .stream()
                 .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                                || authority.getAuthority().equals("ROLE_MODERATOR"));
+                        authority.getAuthority()
+                                .equals("ROLE_ADMIN")
+                                || authority.getAuthority()
+                                .equals("ROLE_MODERATOR")
+                );
     }
 
-    private GroupGoalsEntity findGoalByIdExternal(UUID idExternal) {
+    private GroupGoalsEntity findGoal(
+            UUID groupId,
+            UUID cycleId,
+            UUID goalId
+    ) {
         return groupGoalsRepository
-                .findByIdExternal(idExternal)
+                .findByIdExternalAndReadingCycle_IdExternalAndReadingCycle_Group_IdExternal(
+                        goalId,
+                        cycleId,
+                        groupId
+                )
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "Group goal not found with idExternal: " + idExternal
+                                "Group goal not found for the specified reading cycle"
                         )
                 );
     }
 
-    private ReadingGroupEntity findGroupByIdExternal(UUID groupId) {
+    private GroupReadingCycleEntity findCycle(
+            UUID groupId,
+            UUID cycleId
+    ) {
+        return groupReadingCycleRepository
+                .findByIdExternalAndGroup_IdExternal(
+                        cycleId,
+                        groupId
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Reading cycle not found for group: "
+                                        + groupId
+                        )
+                );
+    }
+
+    private ReadingGroupEntity findGroupByIdExternal(
+            UUID groupId
+    ) {
         return readingGroupRepository
                 .findByIdExternal(groupId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "Reading group not found with idExternal: " + groupId
+                                "Reading group not found with idExternal: "
+                                        + groupId
                         )
                 );
     }
 
     private UserEntity getAuthenticatedUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
 
-        if (authentication == null || !(authentication.getPrincipal() instanceof UserEntity user)) {
-            throw new AccessDeniedException("Authenticated user not found");
+        if (authentication == null
+                || !(authentication.getPrincipal()
+                instanceof UserEntity user)) {
+            throw new AccessDeniedException(
+                    "Authenticated user not found"
+            );
         }
 
         return user;
-    }
-
-    @Override
-    @Transactional
-    public GroupGoalsResponseDto save(GroupGoalsRequestDto requestDto) {
-        return createGoal(requestDto.groupId(), requestDto);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public GroupGoalsResponseDto findById(UUID goalId) {
-        return getGoalByIdExternal(goalId);
-    }
-
-    @Override
-    @Transactional
-    public void delete(UUID goalId) {
-        cancelGoal(goalId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<GroupGoalsResponseDto> findAll() {
-        List<GroupGoalsEntity> goals = groupGoalsRepository.findAll();
-        return groupGoalsMapper.toResponseDtoList(goals);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public GroupGoalsResponseDto findByGroupId(UUID groupId) {
-        return getActiveGoalByGroupId(groupId);
     }
 }

@@ -2,7 +2,6 @@ package com.grupo3.BookVerse.features.groups.readingGroups.service.impl;
 
 import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
-import com.grupo3.BookVerse.features.books.domain.BookEntity;
 import com.grupo3.BookVerse.features.books.repository.BookRepository;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
@@ -15,7 +14,6 @@ import com.grupo3.BookVerse.features.groups.readingGroups.dto.UpdateReadingGroup
 import com.grupo3.BookVerse.features.groups.readingGroups.mappers.ReadingGroupMapper;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.service.ReadingGroupService;
-import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
@@ -36,64 +34,45 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
 
     private final ReadingGroupRepository repository;
     private final ReadingGroupMapper mapper;
-
-    private final BookRepository bookRepository;
-    private final StoryRepository storyRepository;
     private final UserRepository userRepository;
     private final GroupMemberRepository groupMemberRepository;
 
     @Override
     @Transactional
-    public ReadingGroupResponseDto createGroup(ReadingGroupRequestDto dto) {
-        validateContent(dto.bookId(), dto.storyId());
-        validateChapterReference(dto);
+    public ReadingGroupResponseDto createGroup(
+            ReadingGroupRequestDto dto
+    ) {
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
 
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        String normalizedName = normalizeName(dto.name());
+        String normalizedName =
+                normalizeName(dto.name());
 
-        BookEntity book = null;
-        StoryEntity story = null;
+        validateUniqueActiveGroupName(
+                normalizedName
+        );
 
-        if (dto.bookId() != null) {
-            book = findBookByIdExternal(dto.bookId());
-        }
-
-        if (dto.storyId() != null) {
-            story = findStoryByIdExternal(dto.storyId());
-        }
-
-        validateUniqueActiveGroupName(normalizedName, dto.bookId(), dto.storyId());
-
-        ReadingGroupEntity entity = mapper.toEntity(dto);
+        ReadingGroupEntity entity =
+                mapper.toEntity(dto);
 
         entity.setName(normalizedName);
-
-        entity.setEditionReference(
-                dto.editionReference() == null
-                        || dto.editionReference().isBlank()
-                        ? null
-                        : dto.editionReference().trim()
-        );
-
-        entity.setTotalChapters(
-                dto.totalChapters()
-        );
-
         entity.setCreatedBy(authenticatedUser);
         entity.setIsActive(Boolean.TRUE);
-        entity.setBook(book);
-        entity.setStory(story);
 
-        ReadingGroupEntity saved = repository.save(entity);
+        ReadingGroupEntity saved =
+                repository.save(entity);
 
-        GroupMemberEntity creatorMembership = GroupMemberEntity.builder()
-                .group(saved)
-                .user(authenticatedUser)
-                .memberType(GroupMemberType.CREATOR)
-                .status(GroupMemberStatus.ACTIVE)
-                .build();
+        GroupMemberEntity creatorMembership =
+                GroupMemberEntity.builder()
+                        .group(saved)
+                        .user(authenticatedUser)
+                        .memberType(GroupMemberType.CREATOR)
+                        .status(GroupMemberStatus.ACTIVE)
+                        .build();
 
-        groupMemberRepository.save(creatorMembership);
+        groupMemberRepository.save(
+                creatorMembership
+        );
 
         return mapper.toResponseDto(saved);
     }
@@ -101,11 +80,9 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
     @Override
     @Transactional(readOnly = true)
     public List<ReadingGroupResponseDto> getAllGroups() {
-        List<ReadingGroupEntity> activeGroups = repository.findAll().stream()
-                .filter(group -> Boolean.TRUE.equals(group.getIsActive()))
-                .toList();
-
-        return mapper.toResponseDtoList(activeGroups);
+        return mapper.toResponseDtoList(
+                repository.findByIsActiveTrue()
+        );
     }
 
     @Override
@@ -124,38 +101,45 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ReadingGroupResponseDto> getGroupsByBookIdExternal(UUID bookId) {
-        findBookByIdExternal(bookId);
+    public List<ReadingGroupResponseDto>
+    getGroupsByBookIdExternal(UUID bookId) {
 
-        List<ReadingGroupEntity> activeGroups = repository.findByBook_IdExternal(bookId).stream()
-                .filter(group -> Boolean.TRUE.equals(group.getIsActive()))
-                .toList();
+        List<ReadingGroupEntity> groups =
+                repository
+                        .findDistinctByReadingCycles_Book_IdExternalAndIsActiveTrue(
+                                bookId
+                        );
 
-        return mapper.toResponseDtoList(activeGroups);
+        return mapper.toResponseDtoList(groups);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ReadingGroupResponseDto> getGroupsByStoryIdExternal(UUID storyId) {
-        findStoryByIdExternal(storyId);
+    public List<ReadingGroupResponseDto>
+    getGroupsByStoryIdExternal(UUID storyId) {
 
-        List<ReadingGroupEntity> activeGroups = repository.findByStory_IdExternal(storyId).stream()
-                .filter(group -> Boolean.TRUE.equals(group.getIsActive()))
-                .toList();
+        List<ReadingGroupEntity> groups =
+                repository
+                        .findDistinctByReadingCycles_Story_IdExternalAndIsActiveTrue(
+                                storyId
+                        );
 
-        return mapper.toResponseDtoList(activeGroups);
+        return mapper.toResponseDtoList(groups);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ReadingGroupResponseDto> getGroupsByUserIdExternal(UUID userId) {
+    public List<ReadingGroupResponseDto>
+    getGroupsByUserIdExternal(UUID userId) {
+
         findUserByIdExternal(userId);
 
-        List<ReadingGroupEntity> activeGroups = repository.findByCreatedBy_IdExternal(userId).stream()
-                .filter(group -> Boolean.TRUE.equals(group.getIsActive()))
-                .toList();
-
-        return mapper.toResponseDtoList(activeGroups);
+        return mapper.toResponseDtoList(
+                repository
+                        .findByCreatedBy_IdExternalAndIsActiveTrue(
+                                userId
+                        )
+        );
     }
 
     @Override
@@ -195,67 +179,38 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
         repository.save(entity);
     }
 
-    private void validateContent(UUID bookId, UUID storyId) {
-        if (bookId == null && storyId == null) {
-            throw new BadRequestException(
-                    "A reading group must be associated with either a book or a story"
-            );
-        }
 
-        if (bookId != null && storyId != null) {
+    private void validateUniqueActiveGroupName(
+            String name
+    ) {
+        boolean exists =
+                repository
+                        .existsByNameIgnoreCaseAndIsActiveTrue(
+                                name
+                        );
+
+        if (exists) {
             throw new BadRequestException(
-                    "A reading group cannot be associated with both a book and a story"
+                    "An active reading group with this name already exists"
             );
         }
     }
 
-    private void validateUniqueActiveGroupName(String name, UUID bookId, UUID storyId) {
-        if (bookId != null) {
-            boolean exists = repository.existsByNameIgnoreCaseAndBook_IdExternalAndIsActiveTrue(name, bookId);
-            if (exists) {
-                throw new BadRequestException(
-                        "An active reading group with this name already exists for this book"
-                );
-            }
-        }
+    private void validateUniqueActiveGroupNameForUpdate(
+            ReadingGroupEntity entity,
+            String name
+    ) {
+        boolean exists =
+                repository
+                        .existsByNameIgnoreCaseAndIsActiveTrueAndIdExternalNot(
+                                name,
+                                entity.getIdExternal()
+                        );
 
-        if (storyId != null) {
-            boolean exists = repository.existsByNameIgnoreCaseAndStory_IdExternalAndIsActiveTrue(name, storyId);
-            if (exists) {
-                throw new BadRequestException(
-                        "An active reading group with this name already exists for this story"
-                );
-            }
-        }
-    }
-
-    private void validateUniqueActiveGroupNameForUpdate(ReadingGroupEntity entity, String name) {
-        if (entity.getBook() != null) {
-            boolean exists = repository.existsByNameIgnoreCaseAndBook_IdExternalAndIsActiveTrueAndIdExternalNot(
-                    name,
-                    entity.getBook().getIdExternal(),
-                    entity.getIdExternal()
+        if (exists) {
+            throw new BadRequestException(
+                    "An active reading group with this name already exists"
             );
-
-            if (exists) {
-                throw new BadRequestException(
-                        "An active reading group with this name already exists for this book"
-                );
-            }
-        }
-
-        if (entity.getStory() != null) {
-            boolean exists = repository.existsByNameIgnoreCaseAndStory_IdExternalAndIsActiveTrueAndIdExternalNot(
-                    name,
-                    entity.getStory().getIdExternal(),
-                    entity.getIdExternal()
-            );
-
-            if (exists) {
-                throw new BadRequestException(
-                        "An active reading group with this name already exists for this story"
-                );
-            }
         }
     }
 
@@ -289,21 +244,6 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
                         ));
     }
 
-    private BookEntity findBookByIdExternal(UUID idExternal) {
-        return bookRepository.findByIdExternal(idExternal)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Book not found with idExternal: " + idExternal
-                        ));
-    }
-
-    private StoryEntity findStoryByIdExternal(UUID idExternal) {
-        return storyRepository.findByIdExternal(idExternal)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Story not found with idExternal: " + idExternal
-                        ));
-    }
 
     private UserEntity findUserByIdExternal(UUID idExternal) {
         return userRepository.findByIdExternal(idExternal)
@@ -323,43 +263,4 @@ public class ReadingGroupServiceImpl implements ReadingGroupService {
         return user;
     }
 
-    private void validateChapterReference(
-            ReadingGroupRequestDto dto
-    ) {
-        boolean isBookGroup = dto.bookId() != null;
-        boolean isStoryGroup = dto.storyId() != null;
-
-        boolean hasEditionReference =
-                dto.editionReference() != null
-                        && !dto.editionReference().isBlank();
-
-        boolean hasTotalChapters =
-                dto.totalChapters() != null;
-
-        if (isStoryGroup) {
-            if (hasEditionReference || hasTotalChapters) {
-                throw new BadRequestException(
-                        "Edition and total chapter references are only allowed for book groups"
-                );
-            }
-
-            return;
-        }
-
-        if (!isBookGroup) {
-            return;
-        }
-
-        if (hasEditionReference && !hasTotalChapters) {
-            throw new BadRequestException(
-                    "totalChapters is required when an edition reference is provided"
-            );
-        }
-
-        if (hasTotalChapters && dto.totalChapters() <= 0) {
-            throw new BadRequestException(
-                    "Total chapters must be greater than 0"
-            );
-        }
-    }
 }

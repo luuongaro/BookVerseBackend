@@ -6,6 +6,9 @@ import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
 import com.grupo3.BookVerse.features.groups.groupProgress.dto.GroupProgressResponseDto;
 import com.grupo3.BookVerse.features.groups.groupProgress.service.GroupProgressService;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleEntity;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleStatus;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.repository.GroupReadingCycleRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.status.domain.ProgressType;
@@ -41,215 +44,353 @@ public class GroupProgressServiceImpl implements GroupProgressService {
     private final ReadingGroupRepository readingGroupRepository;
     private final GroupGoalsRepository groupGoalsRepository;
     private final ReadingStatusRepository readingStatusRepository;
+    private final GroupReadingCycleRepository groupReadingCycleRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public GroupProgressResponseDto calculateProgress(UUID groupId) {
-        ReadingGroupEntity group = findGroupByIdExternal(groupId);
+    public GroupProgressResponseDto calculateProgress(
+            UUID groupId,
+            UUID cycleId
+    ) {
+        ReadingGroupEntity group =
+                findGroupByIdExternal(groupId);
+
         validateGroupIsActive(group);
 
-        UserEntity authenticatedUser = getAuthenticatedUser();
-        validateCanViewGroupProgress(group, authenticatedUser);
+        GroupReadingCycleEntity cycle =
+                findCycle(groupId, cycleId);
 
-        GroupGoalsEntity goal = groupGoalsRepository
-                .findByGroup_IdExternalAndStatus(groupId, GoalStatus.ACTIVE)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Active goal not found for group: " + groupId
-                ));
-
-        List<UUID> activeMemberIds = group.getMembers().stream()
-                .filter(member -> member.getStatus() == GroupMemberStatus.ACTIVE)
-                .map(GroupMemberEntity::getUser)
-                .filter(Objects::nonNull)
-                .map(UserEntity::getIdExternal)
-                .toList();
-
-
-        if (activeMemberIds.isEmpty()) {
-            return buildResponse(groupId, goal, 0.0);
-        }
-
-        if (group.getBook() != null
-                && goal.getGoalType() == GoalType.CHAPTER) {
-
-            return calculateBookChapterProgress(
-                    groupId,
-                    group,
-                    goal
-            );
-        }
-        List<ReadingStatusEntity> statuses = getGroupReadingStatuses(group, activeMemberIds).stream()
-                .filter(status -> VALID_PROGRESS_STATUSES.contains(status.getStatus()))
-                .toList();
-
-        double totalProgress = 0.0;
-
-        for (ReadingStatusEntity status : statuses) {
-            totalProgress += normalize(status, group, goal);
-        }
-
-        double averageProgress = totalProgress / activeMemberIds.size();
-
-        return buildResponse(groupId, goal, averageProgress);
-    }
-
-    private GroupProgressResponseDto calculateBookChapterProgress(
-            UUID groupId,
-            ReadingGroupEntity group,
-            GroupGoalsEntity goal
-    ) {
-        if (group.getTotalChapters() == null
-                || group.getTotalChapters() <= 0) {
+        if (cycle.getStatus() != GroupReadingCycleStatus.ACTIVE) {
             throw new BadRequestException(
-                    "Book group does not have a valid total chapter reference"
+                    "Group progress can only be calculated for an active reading cycle"
             );
         }
 
-        List<GroupMemberEntity> activeMembers =
-                group.getMembers().stream()
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
+
+        validateCanViewGroupProgress(
+                group,
+                authenticatedUser
+        );
+
+        GroupGoalsEntity goal =
+                groupGoalsRepository
+                        .findByReadingCycle_IdExternalAndStatus(
+                                cycleId,
+                                GoalStatus.ACTIVE
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Active goal not found for reading cycle: "
+                                                + cycleId
+                                )
+                        );
+
+        List<UUID> activeMemberIds =
+                group.getMembers()
+                        .stream()
                         .filter(member ->
                                 member.getStatus()
                                         == GroupMemberStatus.ACTIVE
                         )
+                        .map(GroupMemberEntity::getUser)
+                        .filter(Objects::nonNull)
+                        .map(UserEntity::getIdExternal)
                         .toList();
 
-        if (activeMembers.isEmpty()) {
+        if (activeMemberIds.isEmpty()) {
             return buildResponse(
                     groupId,
+                    cycleId,
                     goal,
                     0.0
             );
         }
 
-        double totalProgress =
-                activeMembers.stream()
-                        .map(GroupMemberEntity::getGroupChapterProgress)
-                        .filter(Objects::nonNull)
-                        .mapToDouble(Integer::doubleValue)
-                        .sum();
+        List<ReadingStatusEntity> statuses =
+                getCycleReadingStatuses(
+                        cycle,
+                        activeMemberIds
+                )
+                        .stream()
+                        .filter(status ->
+                                VALID_PROGRESS_STATUSES.contains(
+                                        status.getStatus()
+                                )
+                        )
+                        .toList();
 
-        double averageProgress =
-                totalProgress / activeMembers.size();
+        double averageProgress;
+
+        if (goal.getGoalType() == GoalType.PERCENTAGE) {
+            averageProgress =
+                    calculatePercentageProgress(
+                            statuses,
+                            cycle,
+                            activeMemberIds.size()
+                    );
+        } else {
+            averageProgress =
+                    calculateChapterProgress(
+                            statuses,
+                            cycle,
+                            activeMemberIds.size()
+                    );
+        }
 
         return buildResponse(
                 groupId,
+                cycleId,
                 goal,
                 averageProgress
         );
     }
 
-    private List<ReadingStatusEntity> getGroupReadingStatuses(
-            ReadingGroupEntity group,
-            List<UUID> memberIds
+    @Override
+    @Transactional(readOnly = true)
+    public double calculateAveragePercentage(
+            UUID groupId,
+            UUID cycleId
     ) {
-        if (group.getBook() != null) {
-            return readingStatusRepository.findByUserIdExternalInAndBookIdExternal(
-                    memberIds,
-                    group.getBook().getIdExternal()
-            );
-        }
+        ReadingGroupEntity group = findGroupByIdExternal(groupId);
+        validateGroupIsActive(group);
 
-        if (group.getStory() != null) {
-            return readingStatusRepository.findByUserIdExternalInAndStoryIdExternal(
-                    memberIds,
-                    group.getStory().getIdExternal()
-            );
-        }
-
-        throw new BadRequestException(
-                "Group must be associated with either a book or a story"
+        GroupReadingCycleEntity cycle = findCycle(
+                groupId,
+                cycleId
         );
-    }
 
-    private double normalize(
-            ReadingStatusEntity status,
-            ReadingGroupEntity group,
-            GroupGoalsEntity goal
-    ) {
-        if (status.getProgressType() == null || status.getProgressValue() == null) {
+        if (cycle.getStatus() != GroupReadingCycleStatus.ACTIVE) {
+            throw new BadRequestException(
+                    "Group progress can only be calculated for an active reading cycle"
+            );
+        }
+
+
+
+        List<UUID> activeMemberIds = group.getMembers().stream()
+                .filter(member ->
+                        member.getStatus() == GroupMemberStatus.ACTIVE
+                )
+                .map(GroupMemberEntity::getUser)
+                .filter(Objects::nonNull)
+                .map(UserEntity::getIdExternal)
+                .toList();
+
+        if (activeMemberIds.isEmpty()) {
             return 0.0;
         }
 
-        ProgressType userProgressType = status.getProgressType();
-        GoalType goalType = goal.getGoalType();
+        List<ReadingStatusEntity> statuses =
+                getCycleReadingStatuses(
+                        cycle,
+                        activeMemberIds
+                ).stream()
+                        .filter(status ->
+                                VALID_PROGRESS_STATUSES.contains(
+                                        status.getStatus()
+                                )
+                        )
+                        .toList();
 
-        if (group.getBook() != null) {
+        double totalPercentage = statuses.stream()
+                .mapToDouble(status ->
+                        normalizeToPercentage(status, cycle)
+                )
+                .sum();
 
+        return totalPercentage / activeMemberIds.size();
+    }
 
-            if (userProgressType == ProgressType.PERCENTAGE) {
-                return status.getProgressValue().doubleValue();
+    private double calculateChapterProgress(
+            List<ReadingStatusEntity> statuses,
+            GroupReadingCycleEntity cycle,
+            int memberCount
+    ) {
+        if (memberCount == 0) {
+            return 0.0;
+        }
+
+        int totalChapters =
+                getCycleTotalChapters(cycle);
+
+        if (totalChapters <= 0) {
+            throw new BadRequestException(
+                    "A valid total chapter reference is required to calculate chapter progress"
+            );
+        }
+
+        double total = 0.0;
+
+        for (ReadingStatusEntity status : statuses) {
+
+            if (status.getProgressType() == null
+                    || status.getProgressValue() == null) {
+                continue;
             }
 
-            if (userProgressType == ProgressType.CHAPTER) {
+            if (status.getProgressType() == ProgressType.CHAPTER) {
+                total += Math.max(
+                        0.0,
+                        Math.min(
+                                status.getProgressValue(),
+                                totalChapters
+                        )
+                );
+            }
 
-                if (status.getProgressTotal() == null
-                        || status.getProgressTotal() <= 0) {
-                    throw new BadRequestException(
-                            "Total chapters are required to normalize book chapter progress"
-                    );
-                }
+            if (status.getProgressType() == ProgressType.PERCENTAGE) {
+                double chapterEquivalent =
+                        totalChapters
+                                * status.getProgressValue()
+                                / 100.0;
 
-                return (status.getProgressValue() * 100.0)
-                        / status.getProgressTotal();
+                total += Math.min(
+                        chapterEquivalent,
+                        totalChapters
+                );
             }
         }
 
-        if (group.getStory() != null) {
-            if (goalType == GoalType.PERCENTAGE) {
-                if (userProgressType == ProgressType.PERCENTAGE) {
-                    return status.getProgressValue().doubleValue();
-                }
+        return total / memberCount;
+    }
 
-                if (userProgressType == ProgressType.CHAPTER) {
-                    int totalChapters = getTotalChapters(group);
-                    return totalChapters == 0
-                            ? 0.0
-                            : (status.getProgressValue() * 100.0) / totalChapters;
-                }
+    private double calculatePercentageProgress(
+            List<ReadingStatusEntity> statuses,
+            GroupReadingCycleEntity cycle,
+            int memberCount
+    ) {
+        if (memberCount == 0) {
+            return 0.0;
+        }
+
+        double total =
+                statuses.stream()
+                        .mapToDouble(status ->
+                                normalizeToPercentage(
+                                        status,
+                                        cycle
+                                )
+                        )
+                        .sum();
+
+        return total / memberCount;
+    }
+    private double normalizeToPercentage(
+            ReadingStatusEntity status,
+            GroupReadingCycleEntity cycle
+    ) {
+        if (status.getProgressType() == null
+                || status.getProgressValue() == null) {
+            return 0.0;
+        }
+
+        if (status.getProgressType() == ProgressType.PERCENTAGE) {
+            return Math.max(
+                    0.0,
+                    Math.min(
+                            status.getProgressValue().doubleValue(),
+                            100.0
+                    )
+            );
+        }
+
+        if (status.getProgressType() == ProgressType.CHAPTER) {
+
+            int totalChapters = getCycleTotalChapters(cycle);
+
+            if (totalChapters <= 0) {
+                throw new BadRequestException(
+                        "A valid total chapter reference is required to normalize chapter progress"
+                );
             }
 
-            if (goalType == GoalType.CHAPTER) {
-                if (userProgressType == ProgressType.CHAPTER) {
-                    return status.getProgressValue().doubleValue();
-                }
+            double percentage =
+                    status.getProgressValue() * 100.0
+                            / totalChapters;
 
-                if (userProgressType == ProgressType.PERCENTAGE) {
-                    int totalChapters = getTotalChapters(group);
-                    return totalChapters == 0
-                            ? 0.0
-                            : (totalChapters * status.getProgressValue()) / 100.0;
-                }
-            }
+            return Math.max(
+                    0.0,
+                    Math.min(percentage, 100.0)
+            );
         }
 
         return 0.0;
     }
 
-    private int getTotalChapters(ReadingGroupEntity group) {
-        if (group.getStory() == null) {
-            throw new BadRequestException(
-                    "Cannot normalize chapter progress for book groups"
-            );
+    private int getCycleTotalChapters(
+            GroupReadingCycleEntity cycle
+    ) {
+        if (cycle.getBook() != null) {
+
+            if (cycle.getTotalChapters() == null
+                    || cycle.getTotalChapters() <= 0) {
+                throw new BadRequestException(
+                        "Book reading cycle does not have a valid total chapter reference"
+                );
+            }
+
+            return cycle.getTotalChapters();
         }
 
-        if (group.getStory().getChapters() == null) {
-            return 0;
+        if (cycle.getStory() != null) {
+
+            if (cycle.getStory().getChapters() == null) {
+                return 0;
+            }
+
+            return (int) cycle.getStory()
+                    .getChapters()
+                    .stream()
+                    .filter(chapter ->
+                            chapter.isPublished()
+                                    && !chapter.isDeleted()
+                    )
+                    .count();
         }
 
-        return (int) group.getStory().getChapters().stream()
-                .filter(chapter -> chapter.isPublished() && !chapter.isDeleted())
-                .count();
+        throw new BadRequestException(
+                "Reading cycle must be associated with either a book or a story"
+        );
+    }
+    private List<ReadingStatusEntity> getCycleReadingStatuses(
+            GroupReadingCycleEntity cycle,
+            List<UUID> memberIds
+    ) {
+        if (cycle.getBook() != null) {
+            return readingStatusRepository
+                    .findByUserIdExternalInAndBookIdExternal(
+                            memberIds,
+                            cycle.getBook().getIdExternal()
+                    );
+        }
+
+        if (cycle.getStory() != null) {
+            return readingStatusRepository
+                    .findByUserIdExternalInAndStoryIdExternal(
+                            memberIds,
+                            cycle.getStory().getIdExternal()
+                    );
+        }
+
+        throw new BadRequestException(
+                "Reading cycle must be associated with either a book or a story"
+        );
     }
 
     private GroupProgressResponseDto buildResponse(
             UUID groupId,
+            UUID cycleId,
             GroupGoalsEntity goal,
             double averageProgress
     ) {
-        boolean achieved = averageProgress >= goal.getTargetProgress();
+        boolean achieved =
+                averageProgress >= goal.getTargetProgress();
 
         return GroupProgressResponseDto.builder()
                 .groupId(groupId)
+                .readingCycleId(cycleId)
                 .goalType(goal.getGoalType())
                 .currentProgress(averageProgress)
                 .targetProgress(goal.getTargetProgress())
@@ -312,5 +453,22 @@ public class GroupProgressServiceImpl implements GroupProgressService {
         }
 
         return user;
+    }
+
+    private GroupReadingCycleEntity findCycle(
+            UUID groupId,
+            UUID cycleId
+    ) {
+        return groupReadingCycleRepository
+                .findByIdExternalAndGroup_IdExternal(
+                        cycleId,
+                        groupId
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Reading cycle not found for group: "
+                                        + groupId
+                        )
+                );
     }
 }

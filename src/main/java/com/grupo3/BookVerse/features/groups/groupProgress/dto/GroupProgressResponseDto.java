@@ -10,6 +10,8 @@ public record GroupProgressResponseDto(
 
         UUID groupId,
 
+        UUID readingCycleId,
+
         GoalType goalType,
 
         Double currentProgress,

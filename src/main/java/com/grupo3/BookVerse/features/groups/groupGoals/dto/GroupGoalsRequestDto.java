@@ -6,12 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 public record GroupGoalsRequestDto(
-
-        @NotNull(message = "groupId cannot be null")
-        UUID groupId,
 
         @NotNull(message = "goalType cannot be null")
         GoalType goalType,
