@@ -1,6 +1,5 @@
 package com.grupo3.BookVerse.features.groups.groupMember.controller;
 
-import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberRequestDto;
 import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberResponseDto;
 import com.grupo3.BookVerse.features.groups.groupMember.service.GroupMemberService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,9 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -31,34 +28,7 @@ public class GroupMemberController {
 
     private final GroupMemberService groupMemberService;
 
-    @PostMapping("/group/{groupId}")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(
-            summary = "Add a user to a reading group",
-            description = "Adds a user selected from community profiles using userId. Email remains supported; provide exactly one identifier.",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Group member added successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid request body"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "403", description = "Forbidden"),
-            @ApiResponse(responseCode = "404", description = "Reading group or user not found"),
-            @ApiResponse(responseCode = "409", description = "User is already an active member of the group")
-    })
-    public ResponseEntity<GroupMemberResponseDto> addMemberToGroup(
-            @Parameter(
-                    description = "External UUID of the reading group",
-                    required = true,
-                    example = "550e8400-e29b-41d4-a716-446655440000"
-            )
-            @PathVariable UUID groupId,
-            @Valid @RequestBody GroupMemberRequestDto requestDto
-    ) {
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(groupMemberService.addMemberToGroup(groupId, requestDto));
-    }
+
 
     @GetMapping("/{idExternal}")
     @PreAuthorize("isAuthenticated()")
