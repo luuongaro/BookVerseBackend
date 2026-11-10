@@ -6,13 +6,16 @@ import com.grupo3.BookVerse.features.groups.groupGoals.domain.GoalStatus;
 import com.grupo3.BookVerse.features.groups.groupGoals.domain.GoalType;
 import com.grupo3.BookVerse.features.groups.groupGoals.domain.GroupGoalsEntity;
 import com.grupo3.BookVerse.features.groups.groupGoals.repository.GroupGoalsRepository;
-import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
+import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
 import com.grupo3.BookVerse.features.groups.groupProgress.dto.GroupProgressResponseDto;
 import com.grupo3.BookVerse.features.groups.groupProgress.service.GroupProgressService;
 import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleEntity;
 import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleStatus;
 import com.grupo3.BookVerse.features.groups.groupReadingCycle.repository.GroupReadingCycleRepository;
+import com.grupo3.BookVerse.features.groups.groupReadingParticipant.domain.GroupReadingParticipantEntity;
+import com.grupo3.BookVerse.features.groups.groupReadingParticipant.domain.GroupReadingParticipantStatus;
+import com.grupo3.BookVerse.features.groups.groupReadingParticipant.repository.GroupReadingParticipantRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.status.domain.ProgressType;
@@ -42,10 +45,17 @@ public class GroupProgressServiceImpl implements GroupProgressService {
             ReadingStatusEnum.RE_READING
     );
 
+    private static final List<GroupReadingParticipantStatus>
+            INCLUDED_PARTICIPANT_STATUSES = List.of(
+            GroupReadingParticipantStatus.ACTIVE,
+            GroupReadingParticipantStatus.COMPLETED
+    );
+
     private final ReadingGroupRepository readingGroupRepository;
     private final GroupGoalsRepository groupGoalsRepository;
     private final ReadingStatusRepository readingStatusRepository;
     private final GroupReadingCycleRepository groupReadingCycleRepository;
+    private final GroupReadingParticipantRepository participantRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -88,19 +98,10 @@ public class GroupProgressServiceImpl implements GroupProgressService {
                                 )
                         );
 
-        List<UUID> activeMemberIds =
-                group.getMembers()
-                        .stream()
-                        .filter(member ->
-                                member.getStatus()
-                                        == GroupMemberStatus.ACTIVE
-                        )
-                        .map(GroupMemberEntity::getUser)
-                        .filter(Objects::nonNull)
-                        .map(UserEntity::getIdExternal)
-                        .toList();
+        List<UUID> participantUserIds =
+                getParticipatingUserIds(cycleId);
 
-        if (activeMemberIds.isEmpty()) {
+        if (participantUserIds.isEmpty()) {
             return buildResponse(
                     groupId,
                     cycleId,
@@ -110,18 +111,19 @@ public class GroupProgressServiceImpl implements GroupProgressService {
         }
 
         List<ReadingStatusEntity> statuses =
-                getCycleReadingStatuses(
+                getValidParticipantReadingStatuses(
                         cycle,
-                        activeMemberIds
-                )
-                        .stream()
-                        .filter(status ->
-                                VALID_PROGRESS_STATUSES.contains(
-                                        status.getStatus()
-                                )
-                        )
-                        .toList();
+                        participantUserIds
+                );
 
+        if (statuses.isEmpty()) {
+            return buildResponse(
+                    groupId,
+                    cycleId,
+                    goal,
+                    0.0
+            );
+        }
         double averageProgress;
 
         if (goal.getGoalType() == GoalType.PERCENTAGE) {
@@ -129,14 +131,14 @@ public class GroupProgressServiceImpl implements GroupProgressService {
                     calculatePercentageProgress(
                             statuses,
                             cycle,
-                            activeMemberIds.size()
+                            statuses.size()
                     );
         } else {
             averageProgress =
                     calculateChapterProgress(
                             statuses,
                             cycle,
-                            activeMemberIds.size()
+                            statuses.size()
                     );
         }
 
@@ -170,30 +172,23 @@ public class GroupProgressServiceImpl implements GroupProgressService {
 
 
 
-        List<UUID> activeMemberIds = group.getMembers().stream()
-                .filter(member ->
-                        member.getStatus() == GroupMemberStatus.ACTIVE
-                )
-                .map(GroupMemberEntity::getUser)
-                .filter(Objects::nonNull)
-                .map(UserEntity::getIdExternal)
-                .toList();
+        List<UUID> participantUserIds =
+                getParticipatingUserIds(cycleId);
 
-        if (activeMemberIds.isEmpty()) {
+
+        if (participantUserIds.isEmpty()) {
             return 0.0;
         }
 
         List<ReadingStatusEntity> statuses =
-                getCycleReadingStatuses(
+                getValidParticipantReadingStatuses(
                         cycle,
-                        activeMemberIds
-                ).stream()
-                        .filter(status ->
-                                VALID_PROGRESS_STATUSES.contains(
-                                        status.getStatus()
-                                )
-                        )
-                        .toList();
+                        participantUserIds
+                );
+
+        if (statuses.isEmpty()) {
+            return 0.0;
+        }
 
         double totalPercentage = statuses.stream()
                 .mapToDouble(status ->
@@ -201,7 +196,7 @@ public class GroupProgressServiceImpl implements GroupProgressService {
                 )
                 .sum();
 
-        return totalPercentage / activeMemberIds.size();
+        return totalPercentage / statuses.size();
     }
 
     private double calculateChapterProgress(
@@ -435,8 +430,11 @@ public class GroupProgressServiceImpl implements GroupProgressService {
     private boolean isAdminOrModerator(UserEntity user) {
         return user.getAuthorities().stream()
                 .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                                || authority.getAuthority().equals("ROLE_MODERATOR"));
+                        "ROLE_ADMIN".equals(authority.getAuthority())
+                                || "ROLE_MODERATOR".equals(
+                                authority.getAuthority()
+                        )
+                );
     }
 
     private ReadingGroupEntity findGroupByIdExternal(UUID groupId) {
@@ -471,5 +469,40 @@ public class GroupProgressServiceImpl implements GroupProgressService {
                                         + groupId
                         )
                 );
+    }
+
+    private List<UUID> getParticipatingUserIds(
+            UUID cycleId
+    ) {
+        return participantRepository
+                .findByReadingCycle_IdExternalAndStatusIn(
+                        cycleId,
+                        INCLUDED_PARTICIPANT_STATUSES
+                )
+                .stream()
+                .map(GroupReadingParticipantEntity::getGroupMember)
+                .filter(Objects::nonNull)
+                .map(GroupMemberEntity::getUser)
+                .filter(Objects::nonNull)
+                .map(UserEntity::getIdExternal)
+                .distinct()
+                .toList();
+    }
+
+    private List<ReadingStatusEntity> getValidParticipantReadingStatuses(
+            GroupReadingCycleEntity cycle,
+            List<UUID> participantUserIds
+    ) {
+        return getCycleReadingStatuses(
+                cycle,
+                participantUserIds
+        )
+                .stream()
+                .filter(status ->
+                        VALID_PROGRESS_STATUSES.contains(
+                                status.getStatus()
+                        )
+                )
+                .toList();
     }
 }

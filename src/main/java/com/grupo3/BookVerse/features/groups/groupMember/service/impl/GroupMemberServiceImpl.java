@@ -1,7 +1,7 @@
 package com.grupo3.BookVerse.features.groups.groupMember.service.impl;
 
-import com.grupo3.BookVerse.common.exception.DuplicateResourceException;
 import com.grupo3.BookVerse.common.exception.BadRequestException;
+import com.grupo3.BookVerse.common.exception.DuplicateResourceException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
@@ -11,9 +11,6 @@ import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberResponseD
 import com.grupo3.BookVerse.features.groups.groupMember.mappers.GroupMemberMapper;
 import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
 import com.grupo3.BookVerse.features.groups.groupMember.service.GroupMemberService;
-import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleEntity;
-import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleStatus;
-import com.grupo3.BookVerse.features.groups.groupReadingCycle.repository.GroupReadingCycleRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
@@ -40,7 +37,6 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     private final GroupMemberMapper groupMemberMapper;
     private final ReadingGroupRepository readingGroupRepository;
     private final UserRepository userRepository;
-    private final GroupReadingCycleRepository groupReadingCycleRepository;
 
     @Override
     @Transactional
@@ -89,9 +85,6 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             existingMembership.setStatus(GroupMemberStatus.ACTIVE);
             existingMembership.setMemberType(GroupMemberType.MEMBER);
             existingMembership.setJoinedAt(LocalDateTime.now());
-
-            existingMembership.setGroupChapterProgress(null);
-            existingMembership.setGroupProgressUpdatedAt(null);
 
             GroupMemberEntity reactivatedMembership =
                     groupMemberRepository.save(existingMembership);
@@ -204,8 +197,6 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             throw new AccessDeniedException("The group creator cannot be removed by a regular group manager");
         }
 
-        membership.setGroupChapterProgress(null);
-        membership.setGroupProgressUpdatedAt(null);
         membership.setStatus(GroupMemberStatus.REMOVED);
 
         groupMemberRepository.save(membership);
@@ -271,90 +262,9 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             }
         }
 
-        membership.setGroupChapterProgress(null);
-        membership.setGroupProgressUpdatedAt(null);
         membership.setStatus(GroupMemberStatus.LEFT);
 
         groupMemberRepository.save(membership);
-    }
-
-    @Override
-    @Transactional
-    public GroupMemberResponseDto updateGroupChapterProgress(
-            UUID groupId,
-            Integer chapterProgress
-    ) {
-        ReadingGroupEntity group =
-                findGroupByIdExternal(groupId);
-
-        UserEntity authenticatedUser =
-                getAuthenticatedUser();
-
-        if (!Boolean.TRUE.equals(group.getIsActive())) {
-            throw new BadRequestException(
-                    "Reading group is inactive"
-            );
-        }
-
-        GroupReadingCycleEntity activeCycle =
-                findActiveCycle(groupId);
-
-        if (activeCycle.getBook() == null) {
-            throw new BadRequestException(
-                    "Group chapter progress is only available for book reading cycles"
-            );
-        }
-
-        if (activeCycle.getTotalChapters() == null
-                || activeCycle.getTotalChapters() <= 0) {
-            throw new BadRequestException(
-                    "This reading cycle does not have a valid chapter reference"
-            );
-        }
-
-        if (chapterProgress == null
-                || chapterProgress <= 0) {
-            throw new BadRequestException(
-                    "Chapter progress must be greater than 0"
-            );
-        }
-
-        if (chapterProgress > activeCycle.getTotalChapters()) {
-            throw new BadRequestException(
-                    "Chapter progress cannot exceed the reading cycle's total chapter reference"
-            );
-        }
-
-        GroupMemberEntity membership =
-                groupMemberRepository
-                        .findByGroupIdExternalAndUserIdExternal(
-                                groupId,
-                                authenticatedUser.getIdExternal()
-                        )
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Group membership not found for authenticated user"
-                                )
-                        );
-
-        if (membership.getStatus() != GroupMemberStatus.ACTIVE) {
-            throw new AccessDeniedException(
-                    "Only active group members can update group chapter progress"
-            );
-        }
-
-        membership.setGroupChapterProgress(
-                chapterProgress
-        );
-
-        membership.setGroupProgressUpdatedAt(
-                LocalDateTime.now()
-        );
-
-        GroupMemberEntity saved =
-                groupMemberRepository.save(membership);
-
-        return groupMemberMapper.toResponseDto(saved);
     }
 
     private void validateCanInviteMembers(
@@ -420,8 +330,11 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     private boolean isAdminOrModerator(UserEntity user) {
         return user.getAuthorities().stream()
                 .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN")
-                                || authority.getAuthority().equals("ROLE_MODERATOR"));
+                        "ROLE_ADMIN".equals(authority.getAuthority())
+                                || "ROLE_MODERATOR".equals(
+                                authority.getAuthority()
+                        )
+                );
     }
 
     private ReadingGroupEntity findGroupByIdExternal(UUID groupId) {
@@ -461,19 +374,4 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         return authenticatedUser;
     }
 
-    private GroupReadingCycleEntity findActiveCycle(
-            UUID groupId
-    ) {
-        return groupReadingCycleRepository
-                .findByGroup_IdExternalAndStatus(
-                        groupId,
-                        GroupReadingCycleStatus.ACTIVE
-                )
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Active reading cycle not found for group: "
-                                        + groupId
-                        )
-                );
-    }
 }

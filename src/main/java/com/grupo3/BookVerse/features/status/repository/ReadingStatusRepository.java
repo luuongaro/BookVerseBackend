@@ -111,6 +111,10 @@ public interface ReadingStatusRepository extends JpaRepository<ReadingStatusEnti
     );
 
 
-
+    Optional<ReadingStatusEntity>
+    findByUserIdExternalAndStoryIdExternal(
+            UUID userId,
+            UUID storyId
+    );
 
 }

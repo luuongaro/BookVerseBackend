@@ -44,12 +44,6 @@ public class GroupMemberEntity {
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 
-    @Column(name = "group_chapter_progress")
-    private Integer groupChapterProgress;
-
-    @Column(name = "group_progress_updated_at")
-    private LocalDateTime groupProgressUpdatedAt;
-
     @PrePersist
     protected void onCreate() {
         if (idExternal == null) {

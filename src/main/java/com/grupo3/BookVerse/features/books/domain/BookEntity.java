@@ -1,6 +1,6 @@
 package com.grupo3.BookVerse.features.books.domain;
 
-import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleEntity;
 import com.grupo3.BookVerse.features.status.domain.ReadingStatusEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -73,11 +73,11 @@ public class BookEntity {
 
     @OneToMany(mappedBy = "book", fetch = FetchType.LAZY)
     @Builder.Default
-    private List<ReadingGroupEntity> readingGroups = new ArrayList<>();
+    private List<ReadingStatusEntity> readingStatuses = new ArrayList<>();
 
     @OneToMany(mappedBy = "book", fetch = FetchType.LAZY)
     @Builder.Default
-    private List<ReadingStatusEntity> readingStatuses = new ArrayList<>();
+    private List<GroupReadingCycleEntity> readingCycles = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {

@@ -1,4 +1,4 @@
-package com.grupo3.BookVerse.features.payments.mapper;
+package com.grupo3.BookVerse.features.payments.mappers;
 
 import com.grupo3.BookVerse.features.payments.domain.PaymentEntity;
 import com.grupo3.BookVerse.features.payments.dto.PaymentResponseDto;
