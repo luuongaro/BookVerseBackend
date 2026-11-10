@@ -6,7 +6,7 @@ import com.grupo3.BookVerse.features.payments.domain.PaymentEntity;
 import com.grupo3.BookVerse.features.payments.domain.PaymentStatus;
 import com.grupo3.BookVerse.features.payments.dto.MercadoPagoPaymentDto;
 import com.grupo3.BookVerse.features.payments.dto.PaymentResponseDto;
-import com.grupo3.BookVerse.features.payments.mapper.PaymentMapper;
+import com.grupo3.BookVerse.features.payments.mappers.PaymentMapper;
 import com.grupo3.BookVerse.features.payments.repository.PaymentRepository;
 import com.grupo3.BookVerse.features.payments.service.MercadoPagoService;
 import com.grupo3.BookVerse.features.payments.service.PaymentService;

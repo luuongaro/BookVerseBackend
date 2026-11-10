@@ -19,9 +19,4 @@ public interface GroupMemberService {
     void removeMemberFromGroup(UUID groupId, UUID userId);
 
     void leaveGroup(UUID groupId);
-
-    GroupMemberResponseDto updateGroupChapterProgress(
-            UUID groupId,
-            Integer chapterProgress
-    );
 }

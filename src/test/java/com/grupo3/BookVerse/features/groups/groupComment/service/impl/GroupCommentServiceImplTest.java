@@ -10,6 +10,9 @@ import com.grupo3.BookVerse.features.groups.groupComment.mappers.GroupCommentMap
 import com.grupo3.BookVerse.features.groups.groupComment.repository.GroupCommentRepository;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
 import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleEntity;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.domain.GroupReadingCycleStatus;
+import com.grupo3.BookVerse.features.groups.groupReadingCycle.repository.GroupReadingCycleRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
 import com.grupo3.BookVerse.features.groups.readingGroups.repository.ReadingGroupRepository;
 import com.grupo3.BookVerse.features.roles.domain.RoleEntity;
@@ -49,6 +52,9 @@ class GroupCommentServiceImplTest {
     private ReadingGroupRepository readingGroupRepository;
 
     @Mock
+    private GroupReadingCycleRepository groupReadingCycleRepository;
+
+    @Mock
     private UserRepository userRepository;
 
     @Mock
@@ -66,6 +72,8 @@ class GroupCommentServiceImplTest {
     private UserEntity user;
     private ReadingGroupEntity group;
     private ReadingStatusEntity readingStatus;
+    private BookEntity book;
+    private GroupReadingCycleEntity activeCycle;
 
     @BeforeEach
     void setUp() {
@@ -77,19 +85,28 @@ class GroupCommentServiceImplTest {
         user.setId(1L);
         user.setIdExternal(userId);
 
-        BookEntity book = new BookEntity();
+        book = new BookEntity();
         book.setIdExternal(bookId);
 
         group = new ReadingGroupEntity();
         group.setIdExternal(groupId);
-        group.setBook(book);
+
+        activeCycle = new GroupReadingCycleEntity();
+        activeCycle.setGroup(group);
+        activeCycle.setBook(book);
+        activeCycle.setStory(null);
+        activeCycle.setStatus(GroupReadingCycleStatus.ACTIVE);
 
         readingStatus = new ReadingStatusEntity();
         readingStatus.setProgressType(ProgressType.PERCENTAGE);
         readingStatus.setProgressValue(60);
 
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(user, null, List.of())
+                new UsernamePasswordAuthenticationToken(
+                        user,
+                        null,
+                        List.of()
+                )
         );
     }
 

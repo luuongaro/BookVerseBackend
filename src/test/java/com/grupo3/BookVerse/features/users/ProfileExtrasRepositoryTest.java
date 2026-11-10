@@ -75,10 +75,24 @@ class ProfileExtrasRepositoryTest {
         for (int i = 0; i < values.size(); i++) em.persist(ReadingStatusEntity.builder().user(reader).story(works.get(i)).status(values.get(i)).build());
         em.persist(ReadingStatusEntity.builder().user(other).story(works.getFirst()).status(ReadingStatusEnum.FINISHED).build());
         for (int i = 0; i < 3; i++) {
-            var group = ReadingGroupEntity.builder().name("Group " + i).createdBy(reader).story(works.get(i)).isActive(i != 1).build();
+            var group = ReadingGroupEntity.builder()
+                    .name("Group " + i)
+                    .createdBy(reader)
+                    .isActive(i != 1)
+                    .build();
+
             em.persist(group);
-            em.persist(GroupMemberEntity.builder().group(group).user(reader).memberType(GroupMemberType.MEMBER)
-                    .status(i == 2 ? GroupMemberStatus.LEFT : GroupMemberStatus.ACTIVE).build());
+
+            em.persist(GroupMemberEntity.builder()
+                    .group(group)
+                    .user(reader)
+                    .memberType(GroupMemberType.MEMBER)
+                    .status(
+                            i == 2
+                                    ? GroupMemberStatus.LEFT
+                                    : GroupMemberStatus.ACTIVE
+                    )
+                    .build());
         }
         var activity = service.activity(reader.getIdExternal());
         assertEquals(2, activity.wantToRead()); assertEquals(2, activity.inProgress());

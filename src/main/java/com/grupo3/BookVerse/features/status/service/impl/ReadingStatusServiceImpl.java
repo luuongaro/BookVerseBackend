@@ -1,4 +1,5 @@
 package com.grupo3.BookVerse.features.status.service.impl;
+import com.grupo3.BookVerse.features.groups.groupReadingParticipant.service.GroupReadingParticipantService;
 import com.grupo3.BookVerse.features.status.service.ReadingStatusService;
 import com.grupo3.BookVerse.features.stories.domain.StoryAccessType;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
@@ -43,7 +44,7 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
 
     private final ReadingStatusRepository readingStatusRepository;
     private final ReadingStatusMapper readingStatusMapper;
-
+    private final GroupReadingParticipantService groupReadingParticipantService;
     private final UserRepository userRepository;
     private final BookRepository bookRepository;
     private final StoryRepository storyRepository;
@@ -90,7 +91,11 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
         entity.setBook(book);
         entity.setStory(story);
 
-        ReadingStatusEntity saved = readingStatusRepository.save(entity);
+        ReadingStatusEntity saved =
+                readingStatusRepository.save(entity);
+
+        groupReadingParticipantService
+                .synchronizeWithReadingStatus(saved);
 
         return readingStatusMapper.toResponseDto(saved);
     }
@@ -188,6 +193,25 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
 
         validateCanModifyReadingStatus(entity, authenticatedUser);
 
+        boolean contentChanged =
+                !java.util.Objects.equals(
+                        entity.getBook() == null
+                                ? null
+                                : entity.getBook().getIdExternal(),
+                        requestDto.bookId()
+                )
+                        || !java.util.Objects.equals(
+                        entity.getStory() == null
+                                ? null
+                                : entity.getStory().getIdExternal(),
+                        requestDto.storyId()
+                );
+
+        if (contentChanged) {
+            groupReadingParticipantService
+                    .withdrawForDeletedReadingStatus(entity);
+        }
+
         BookEntity book = null;
         StoryEntity story = null;
 
@@ -227,7 +251,11 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
         entity.setStartedAt(requestDto.startedAt());
         entity.setFinishedAt(requestDto.finishedAt());
 
-        ReadingStatusEntity saved = readingStatusRepository.save(entity);
+        ReadingStatusEntity saved =
+                readingStatusRepository.save(entity);
+
+        groupReadingParticipantService
+                .synchronizeWithReadingStatus(saved);
 
         return readingStatusMapper.toResponseDto(saved);
     }
@@ -240,6 +268,9 @@ public class ReadingStatusServiceImpl implements ReadingStatusService {
         UserEntity authenticatedUser = getAuthenticatedUser();
 
         validateCanModifyReadingStatus(entity, authenticatedUser);
+
+        groupReadingParticipantService
+                .withdrawForDeletedReadingStatus(entity);
 
         readingStatusRepository.delete(entity);
     }
