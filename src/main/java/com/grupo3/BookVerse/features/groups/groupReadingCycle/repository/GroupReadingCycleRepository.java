@@ -31,4 +31,6 @@ public interface GroupReadingCycleRepository
             UUID cycleId,
             UUID groupId
     );
+
+
 }
