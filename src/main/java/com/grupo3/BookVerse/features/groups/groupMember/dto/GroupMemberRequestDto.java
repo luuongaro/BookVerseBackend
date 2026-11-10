@@ -1,10 +1,11 @@
 package com.grupo3.BookVerse.features.groups.groupMember.dto;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.AssertTrue;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import java.util.UUID;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Email;
 import lombok.*;
+
+import java.util.UUID;
 
 @Getter
 @Setter

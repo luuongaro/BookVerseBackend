@@ -1,12 +1,9 @@
 package com.grupo3.BookVerse.features.groups.groupMember.service.impl;
 
-import com.grupo3.BookVerse.common.exception.BadRequestException;
-import com.grupo3.BookVerse.common.exception.DuplicateResourceException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberType;
-import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberRequestDto;
 import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberResponseDto;
 import com.grupo3.BookVerse.features.groups.groupMember.mappers.GroupMemberMapper;
 import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
@@ -37,73 +34,6 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     private final GroupMemberMapper groupMemberMapper;
     private final ReadingGroupRepository readingGroupRepository;
     private final UserRepository userRepository;
-
-    @Override
-    @Transactional
-    public GroupMemberResponseDto addMemberToGroup(
-            UUID groupId,
-            GroupMemberRequestDto requestDto
-    ) {
-        ReadingGroupEntity group = findGroupByIdExternal(groupId);
-        UserEntity authenticatedUser = getAuthenticatedUser();
-
-        validateCanInviteMembers(groupId, authenticatedUser);
-
-        if (requestDto == null || !requestDto.isTargetValid()) {
-            throw new BadRequestException("Specify either a userId or an email");
-        }
-        UserEntity targetUser = requestDto.getUserId() != null
-                ? findUserByIdExternal(requestDto.getUserId())
-                : findUserByEmail(requestDto.getEmail().trim());
-
-        if (targetUser.getStatus() != UserStatus.ACTIVE) {
-            throw new AccessDeniedException(
-                    "Only active users can be added to a reading group"
-            );
-        }
-
-        GroupMemberEntity existingMembership = groupMemberRepository
-                .findByGroupIdExternalAndUserIdExternal(
-                        groupId,
-                        targetUser.getIdExternal()
-                )
-                .orElse(null);
-
-        if (existingMembership != null) {
-            if (existingMembership.getStatus() == GroupMemberStatus.ACTIVE) {
-                throw new DuplicateResourceException(
-                        "User is already an active member of this group"
-                );
-            }
-
-            if (existingMembership.getStatus() == GroupMemberStatus.REMOVED) {
-                throw new AccessDeniedException(
-                        "A removed user cannot be added to this group again"
-                );
-            }
-
-            existingMembership.setStatus(GroupMemberStatus.ACTIVE);
-            existingMembership.setMemberType(GroupMemberType.MEMBER);
-            existingMembership.setJoinedAt(LocalDateTime.now());
-
-            GroupMemberEntity reactivatedMembership =
-                    groupMemberRepository.save(existingMembership);
-
-            return groupMemberMapper.toResponseDto(reactivatedMembership);
-        }
-
-        GroupMemberEntity groupMemberEntity = GroupMemberEntity.builder()
-                .group(group)
-                .user(targetUser)
-                .memberType(GroupMemberType.MEMBER)
-                .status(GroupMemberStatus.ACTIVE)
-                .build();
-
-        GroupMemberEntity savedGroupMember =
-                groupMemberRepository.save(groupMemberEntity);
-
-        return groupMemberMapper.toResponseDto(savedGroupMember);
-    }
 
     @Override
     @Transactional(readOnly = true)
@@ -267,28 +197,6 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         groupMemberRepository.save(membership);
     }
 
-    private void validateCanInviteMembers(
-            UUID groupId,
-            UserEntity authenticatedUser
-    ) {
-        if (isAdminOrModerator(authenticatedUser)) {
-            return;
-        }
-
-        boolean isActiveMember =
-                groupMemberRepository
-                        .existsByGroupIdExternalAndUserIdExternalAndStatus(
-                                groupId,
-                                authenticatedUser.getIdExternal(),
-                                GroupMemberStatus.ACTIVE
-                        );
-
-        if (!isActiveMember) {
-            throw new AccessDeniedException(
-                    "Only active group members can invite users"
-            );
-        }
-    }
 
     private void validateCanManageMembers(UUID groupId, UserEntity authenticatedUser) {
         if (isAdminOrModerator(authenticatedUser)) {
@@ -351,12 +259,6 @@ public class GroupMemberServiceImpl implements GroupMemberService {
                 ));
     }
 
-    private UserEntity findUserByEmail(String email) {
-        return userRepository.findByEmailWithRoles(email)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User not found with email: " + email
-                ));
-    }
 
     private UserEntity getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

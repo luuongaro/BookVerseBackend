@@ -1,11 +1,9 @@
 package com.grupo3.BookVerse.features.groups.groupMember.service.impl;
 
-import com.grupo3.BookVerse.common.exception.DuplicateResourceException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberType;
-import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberRequestDto;
 import com.grupo3.BookVerse.features.groups.groupMember.dto.GroupMemberResponseDto;
 import com.grupo3.BookVerse.features.groups.groupMember.mappers.GroupMemberMapper;
 import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
@@ -31,7 +29,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -82,126 +79,6 @@ class GroupMemberServiceImplTest {
         SecurityContextHolder.clearContext();
     }
 
-    // ─── addMemberToGroup ────────────────────────────────────────────────────
-
-    // Verify a new member is added successfully
-    @Test
-    void addMemberToGroup_shouldAddMember_whenNoExistingMembership() {
-        GroupMemberRequestDto request = mock(GroupMemberRequestDto.class);
-        when(request.isTargetValid()).thenReturn(true);
-        when(request.getUserId()).thenReturn(userId);
-
-        GroupMemberResponseDto response = mock(GroupMemberResponseDto.class);
-
-        when(readingGroupRepository.findByIdExternal(groupId))
-                .thenReturn(Optional.of(group));
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(targetUser));
-
-        // authenticated user is active member → can invite members
-        when(groupMemberRepository
-                .existsByGroupIdExternalAndUserIdExternalAndStatus(
-                        groupId, authenticatedUser.getIdExternal(), GroupMemberStatus.ACTIVE))
-                .thenReturn(true);
-
-        when(groupMemberRepository
-                .findByGroupIdExternalAndUserIdExternal(groupId, userId))
-                .thenReturn(Optional.empty());
-
-        when(groupMemberRepository.save(any(GroupMemberEntity.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(groupMemberMapper.toResponseDto(any(GroupMemberEntity.class))).thenReturn(response);
-
-        GroupMemberResponseDto result = service.addMemberToGroup(groupId, request);
-
-        assertNotNull(result);
-        assertEquals(response, result);
-        verify(groupMemberRepository).save(any(GroupMemberEntity.class));
-    }
-
-    // Verify exception when user is already an active member
-    @Test
-    void addMemberToGroup_shouldThrowDuplicate_whenAlreadyActiveMember() {
-        GroupMemberRequestDto request = mock(GroupMemberRequestDto.class);
-        when(request.isTargetValid()).thenReturn(true);
-        when(request.getUserId()).thenReturn(userId);
-
-        GroupMemberEntity existing = new GroupMemberEntity();
-        existing.setStatus(GroupMemberStatus.ACTIVE);
-
-        when(readingGroupRepository.findByIdExternal(groupId))
-                .thenReturn(Optional.of(group));
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(targetUser));
-        when(groupMemberRepository
-                .existsByGroupIdExternalAndUserIdExternalAndStatus(
-                        groupId, authenticatedUser.getIdExternal(), GroupMemberStatus.ACTIVE))
-                .thenReturn(true);
-        when(groupMemberRepository
-                .findByGroupIdExternalAndUserIdExternal(groupId, userId))
-                .thenReturn(Optional.of(existing));
-
-        assertThrows(DuplicateResourceException.class,
-                () -> service.addMemberToGroup(groupId, request));
-    }
-
-    // Verify exception when trying to re-add a removed member
-    @Test
-    void addMemberToGroup_shouldThrowAccessDenied_whenMemberWasRemoved() {
-        GroupMemberRequestDto request = mock(GroupMemberRequestDto.class);
-        when(request.isTargetValid()).thenReturn(true);
-        when(request.getUserId()).thenReturn(userId);
-
-        GroupMemberEntity existing = new GroupMemberEntity();
-        existing.setStatus(GroupMemberStatus.REMOVED);
-
-        when(readingGroupRepository.findByIdExternal(groupId))
-                .thenReturn(Optional.of(group));
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(targetUser));
-        when(groupMemberRepository
-                .existsByGroupIdExternalAndUserIdExternalAndStatus(
-                        groupId, authenticatedUser.getIdExternal(), GroupMemberStatus.ACTIVE))
-                .thenReturn(true);
-        when(groupMemberRepository
-                .findByGroupIdExternalAndUserIdExternal(groupId, userId))
-                .thenReturn(Optional.of(existing));
-
-        assertThrows(AccessDeniedException.class,
-                () -> service.addMemberToGroup(groupId, request));
-    }
-
-    // Verify that a left member can be re-added (reactivated)
-    @Test
-    void addMemberToGroup_shouldReactivateMember_whenStatusIsLeft() {
-        GroupMemberRequestDto request = mock(GroupMemberRequestDto.class);
-        when(request.isTargetValid()).thenReturn(true);
-        when(request.getUserId()).thenReturn(userId);
-
-        GroupMemberEntity existing = new GroupMemberEntity();
-        existing.setStatus(GroupMemberStatus.LEFT);
-
-        GroupMemberResponseDto response = mock(GroupMemberResponseDto.class);
-
-        when(readingGroupRepository.findByIdExternal(groupId))
-                .thenReturn(Optional.of(group));
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(targetUser));
-        when(groupMemberRepository
-                .existsByGroupIdExternalAndUserIdExternalAndStatus(
-                        groupId, authenticatedUser.getIdExternal(), GroupMemberStatus.ACTIVE))
-                .thenReturn(true);
-        when(groupMemberRepository
-                .findByGroupIdExternalAndUserIdExternal(groupId, userId))
-                .thenReturn(Optional.of(existing));
-        when(groupMemberRepository.save(existing)).thenReturn(existing);
-        when(groupMemberMapper.toResponseDto(existing)).thenReturn(response);
-
-        GroupMemberResponseDto result = service.addMemberToGroup(groupId, request);
-
-        assertEquals(GroupMemberStatus.ACTIVE, existing.getStatus());
-        assertEquals(response, result);
-    }
 
     // ─── getActiveMembersByGroupId ───────────────────────────────────────────
 
