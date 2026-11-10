@@ -38,4 +38,8 @@ public interface ReadingGroupRepository
             String name,
             UUID idExternal
     );
+
+    List<ReadingGroupEntity> findByNameContainingIgnoreCaseAndIsActiveTrue(
+            String name
+    );
 }

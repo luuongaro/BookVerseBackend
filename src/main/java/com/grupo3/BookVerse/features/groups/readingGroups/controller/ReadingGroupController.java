@@ -1,5 +1,6 @@
 package com.grupo3.BookVerse.features.groups.readingGroups.controller;
 
+import com.grupo3.BookVerse.features.groups.readingGroups.dto.ReadingGroupDiscoveryResponseDto;
 import com.grupo3.BookVerse.features.groups.readingGroups.dto.ReadingGroupRequestDto;
 import com.grupo3.BookVerse.features.groups.readingGroups.dto.ReadingGroupResponseDto;
 import com.grupo3.BookVerse.features.groups.readingGroups.dto.UpdateReadingGroupRequestDto;
@@ -219,5 +220,57 @@ public class ReadingGroupController {
     ) {
         readingGroupService.deleteGroup(idExternal);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/discover")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Discover reading groups",
+            description = "Retrieves active reading groups including their active reading cycle, active member count, and the authenticated user's membership state.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Reading groups retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content
+            )
+    })
+    public ResponseEntity<List<ReadingGroupDiscoveryResponseDto>>
+    discoverGroups() {
+
+        return ResponseEntity.ok(
+                readingGroupService.discoverGroups()
+        );
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Search reading groups",
+            description = "Searches active reading groups by name and includes the active reading cycle, active member count, and authenticated user's membership state.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Reading groups retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content
+            )
+    })
+    public ResponseEntity<List<ReadingGroupDiscoveryResponseDto>> searchGroups(
+            @RequestParam(required = false) String query
+    ) {
+        return ResponseEntity.ok(
+                readingGroupService.searchGroups(query)
+        );
     }
 }

@@ -36,4 +36,9 @@ public interface GroupMemberRepository extends JpaRepository<GroupMemberEntity, 
             GroupMemberType memberType,
             GroupMemberStatus status
     );
+
+    long countByGroupIdExternalAndStatus(
+            UUID groupId,
+            GroupMemberStatus status
+    );
 }
