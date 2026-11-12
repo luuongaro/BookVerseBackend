@@ -14,6 +14,10 @@ import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserEntity u where u.id = :id and u.status = com.grupo3.BookVerse.features.users.domain.UserStatus.ACTIVE")
+    Optional<UserEntity> lockActiveUser(@Param("id") Long id);
+
     Optional<UserEntity> findByIdExternal(UUID idExternal);
 
     Optional<UserEntity> findByIdExternalAndStatus(UUID idExternal, UserStatus status);
