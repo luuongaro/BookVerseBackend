@@ -81,6 +81,12 @@ public class StoryServiceImpl implements StoryService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<String> getExploreGenres() {
+        return storyRepository.findExploreGenres(getAuthenticatedUser().getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public StoryDetailResponseDto getStoryByIdExternal(UUID idExternal) {
 
         StoryEntity story = findActiveStoryByIdExternal(idExternal);

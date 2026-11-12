@@ -21,6 +21,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/stories")
@@ -66,6 +67,12 @@ public class StoryController {
             @RequestParam(defaultValue = "false") boolean friendsOnly,
             Pageable pageable) {
         return ResponseEntity.ok(storyService.searchStoriesToExplore(title, author, genre, friendsOnly, pageable));
+    }
+
+    @GetMapping("/explore/genres")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<String>> exploreGenres() {
+        return ResponseEntity.ok(storyService.getExploreGenres());
     }
 
     @GetMapping("/{idExternal}")

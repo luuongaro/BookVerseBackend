@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
+import java.util.List;
 
 public interface StoryService {
 
@@ -18,6 +19,8 @@ public interface StoryService {
     Page<StoryResponseDto> getStoriesToExplore(Pageable pageable);
 
     Page<StoryResponseDto> searchStoriesToExplore(String title, String author, String genre, boolean friendsOnly, Pageable pageable);
+
+    List<String> getExploreGenres();
 
     StoryDetailResponseDto getStoryByIdExternal(UUID idExternal);
 
