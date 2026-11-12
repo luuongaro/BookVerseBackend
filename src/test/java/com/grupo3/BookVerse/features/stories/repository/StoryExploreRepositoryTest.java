@@ -70,7 +70,7 @@ class StoryExploreRepositoryTest {
         assertTrue(first.getContent().stream().noneMatch(item -> item.isHidden() || item.isDeleted()));
         assertTrue(first.getContent().stream().noneMatch(item -> item.getTitle().matches("Story [0-4]")));
         assertFalse(last.getContent().getFirst().getIdExternal().equals(first.getContent().getFirst().getIdExternal()));
-        var filtered = stories.searchExplore(reader.getId(), "story", "OTHER", "fantas", false, Friendship.Status.ACCEPTED, PageRequest.of(0, 1));
+        var filtered = stories.searchExplore(reader.getId(), "story", "OTHER", "FANTASÍA", false, Friendship.Status.ACCEPTED, PageRequest.of(0, 1));
         assertEquals(2, filtered.getTotalElements());
         assertEquals(2, filtered.getTotalPages());
         assertEquals(0, stories.searchExplore(reader.getId(), "Story 3", "", "", false, Friendship.Status.ACCEPTED, PageRequest.of(0, 10)).getTotalElements());
@@ -81,7 +81,8 @@ class StoryExploreRepositoryTest {
         update.find(Friendship.class, friendship.getId()).setStatus(Friendship.Status.ACCEPTED);
         update.getTransaction().commit();
         update.close();
-        assertEquals(2, stories.searchExplore(reader.getId(), "", "", "fantas", true, Friendship.Status.ACCEPTED, PageRequest.of(0, 1)).getTotalElements());
+        assertEquals(2, stories.searchExplore(reader.getId(), "", "", "Fantasía", true, Friendship.Status.ACCEPTED, PageRequest.of(0, 1)).getTotalElements());
+        assertEquals(java.util.Set.of("Fantasía", "Romance"), new java.util.HashSet<>(stories.findExploreGenres(reader.getId())));
     }
 
     @Configuration

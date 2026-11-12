@@ -30,7 +30,7 @@ public interface StoryRepository extends JpaRepository<StoryEntity, Long> {
             SELECT s FROM StoryEntity s WHERE s.author.id <> :readerId AND s.deleted = false AND s.hidden = false
               AND (:title = '' OR LOCATE(LOWER(:title), LOWER(s.title)) > 0)
               AND (:author = '' OR LOCATE(LOWER(:author), LOWER(s.author.username)) > 0)
-              AND (:genre = '' OR LOCATE(LOWER(:genre), LOWER(s.genre)) > 0)
+              AND (:genre = '' OR LOWER(s.genre) = LOWER(:genre))
               AND (:friendsOnly = false OR EXISTS (
                   SELECT f.id FROM Friendship f WHERE f.status = :acceptedStatus AND
                     ((f.userLow.id = :readerId AND f.userHigh.id = s.author.id)
@@ -41,6 +41,14 @@ public interface StoryRepository extends JpaRepository<StoryEntity, Long> {
                                    @Param("author") String author, @Param("genre") String genre,
                                    @Param("friendsOnly") boolean friendsOnly,
                                    @Param("acceptedStatus") Friendship.Status acceptedStatus, Pageable pageable);
+
+    @Query("""
+            SELECT DISTINCT s.genre FROM StoryEntity s
+            WHERE s.author.id <> :readerId AND s.deleted = false AND s.hidden = false
+              AND s.genre IS NOT NULL AND TRIM(s.genre) <> ''
+            ORDER BY s.genre
+            """)
+    List<String> findExploreGenres(@Param("readerId") Long readerId);
 
     Page<StoryEntity> findByAuthorIdAndDeletedFalseOrderByCreatedAtDesc(Long authorId, Pageable pageable);
 
