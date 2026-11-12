@@ -47,6 +47,7 @@ public class StoryServiceImpl implements StoryService {
         validateAuthorCanPublishPremiumStory(author, storyRequestDto);
 
         StoryEntity storyEntity = storyMapper.toEntity(storyRequestDto);
+        if (storyEntity.getGenre() != null) storyEntity.setGenre(storyEntity.getGenre().isBlank() ? null : storyEntity.getGenre().strip());
         storyEntity.setAuthor(author);
 
         StoryEntity savedStory = storyRepository.save(storyEntity);
@@ -70,6 +71,12 @@ public class StoryServiceImpl implements StoryService {
         return storyRepository
                 .findByAuthorIdNotAndDeletedFalseAndHiddenFalseOrderByCreatedAtDesc(reader.getId(), pageable)
                 .map(storyMapper::toResponseDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<StoryResponseDto> searchStoriesToExplore(String title, String author, String genre, boolean friendsOnly, Pageable pageable) {
+        return storyRepository.searchExplore(getAuthenticatedUser().getId(), title.strip(), author.strip(), genre.strip(), friendsOnly, com.grupo3.BookVerse.features.friends.Friendship.Status.ACCEPTED, pageable).map(storyMapper::toResponseDto);
     }
 
     @Override
@@ -113,6 +120,7 @@ public class StoryServiceImpl implements StoryService {
                 .authorId(story.getAuthor().getIdExternal())
                 .authorUsername(story.getAuthor().getProfileUsername())
                 .title(story.getTitle())
+                .genre(story.getGenre())
                 .description(story.getDescription())
                 .accessType(story.getAccessType())
                 .hidden(story.isHidden())
@@ -150,6 +158,8 @@ public class StoryServiceImpl implements StoryService {
         validateAuthorCanPublishPremiumStory(existingStory.getAuthor(), storyRequestDto);
 
         existingStory.setTitle(storyRequestDto.getTitle());
+
+        if (storyRequestDto.getGenre() != null) existingStory.setGenre(storyRequestDto.getGenre().isBlank() ? null : storyRequestDto.getGenre().strip());
 
         existingStory.setDescription(storyRequestDto.getDescription());
 

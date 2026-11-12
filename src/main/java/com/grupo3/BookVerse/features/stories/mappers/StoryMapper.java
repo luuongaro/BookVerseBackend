@@ -23,6 +23,7 @@ public interface StoryMapper {
     StoryEntity toEntity(StoryRequestDto dto);
 
     @Mapping(target = "authorId", source = "author.idExternal")
+    @Mapping(target = "authorUsername", expression = "java(storyEntity.getAuthor() == null ? null : storyEntity.getAuthor().getProfileUsername())")
     @Mapping(target = "chaptersCount", expression = "java(mapChaptersCount(storyEntity.getChapters()))")
     StoryResponseDto toResponseDto(StoryEntity storyEntity);
 

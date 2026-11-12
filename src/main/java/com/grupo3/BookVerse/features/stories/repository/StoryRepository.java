@@ -2,6 +2,7 @@ package com.grupo3.BookVerse.features.stories.repository;
 
 import com.grupo3.BookVerse.features.stories.domain.StoryAccessType;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
+import com.grupo3.BookVerse.features.friends.Friendship;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,6 +25,22 @@ public interface StoryRepository extends JpaRepository<StoryEntity, Long> {
     Page<StoryEntity> findAllByDeletedFalseOrderByCreatedAtDesc(Pageable pageable);
 
     Page<StoryEntity> findByAuthorIdNotAndDeletedFalseAndHiddenFalseOrderByCreatedAtDesc(Long authorId, Pageable pageable);
+
+    @Query("""
+            SELECT s FROM StoryEntity s WHERE s.author.id <> :readerId AND s.deleted = false AND s.hidden = false
+              AND (:title = '' OR LOCATE(LOWER(:title), LOWER(s.title)) > 0)
+              AND (:author = '' OR LOCATE(LOWER(:author), LOWER(s.author.username)) > 0)
+              AND (:genre = '' OR LOCATE(LOWER(:genre), LOWER(s.genre)) > 0)
+              AND (:friendsOnly = false OR EXISTS (
+                  SELECT f.id FROM Friendship f WHERE f.status = :acceptedStatus AND
+                    ((f.userLow.id = :readerId AND f.userHigh.id = s.author.id)
+                      OR (f.userHigh.id = :readerId AND f.userLow.id = s.author.id))))
+            ORDER BY s.createdAt DESC, s.id DESC
+            """)
+    Page<StoryEntity> searchExplore(@Param("readerId") Long readerId, @Param("title") String title,
+                                   @Param("author") String author, @Param("genre") String genre,
+                                   @Param("friendsOnly") boolean friendsOnly,
+                                   @Param("acceptedStatus") Friendship.Status acceptedStatus, Pageable pageable);
 
     Page<StoryEntity> findByAuthorIdAndDeletedFalseOrderByCreatedAtDesc(Long authorId, Pageable pageable);
 
