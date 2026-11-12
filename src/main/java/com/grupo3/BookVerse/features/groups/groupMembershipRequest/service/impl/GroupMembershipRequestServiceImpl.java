@@ -26,6 +26,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import com.grupo3.BookVerse.infrastructure.notifications.SocialMailRequested;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,6 +44,7 @@ public class GroupMembershipRequestServiceImpl
     private final ReadingGroupRepository readingGroupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher events;
 
     @Override
     @Transactional
@@ -81,6 +84,9 @@ public class GroupMembershipRequestServiceImpl
 
         GroupMembershipRequestEntity saved =
                 requestRepository.save(request);
+
+        UserEntity creator = group.getCreatedBy();
+        events.publishEvent(new SocialMailRequested(creator.getEmail(), creator.getProfileUsername(), authenticatedUser.getProfileUsername(), group.getName()));
 
         return requestMapper.toResponseDto(saved);
     }

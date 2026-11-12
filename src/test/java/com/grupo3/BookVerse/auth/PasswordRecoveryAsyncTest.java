@@ -49,7 +49,7 @@ class PasswordRecoveryAsyncTest {
             assertEquals(0, tokens.count());
             verifyNoInteractions(emails);
         });
-        verify(emails, timeout(5000)).sendPasswordResetEmail(eq("async@example.com"), anyString(), eq(30L));
+        verify(emails, timeout(5000)).sendPasswordResetEmail(eq("async@example.com"), nullable(String.class), anyString(), eq(30L));
         assertEquals(1, tokens.count());
     }
 

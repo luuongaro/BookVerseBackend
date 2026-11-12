@@ -73,7 +73,7 @@ class PasswordRecoveryTest {
     String issue() {
         recovery.requestReset(email);
         var link = ArgumentCaptor.forClass(String.class);
-        verify(emails).sendPasswordResetEmail(eq(email), link.capture(), eq(30L));
+        verify(emails).sendPasswordResetEmail(eq(email), nullable(String.class), link.capture(), eq(30L));
         assertTrue(link.getValue().startsWith("http://localhost:4200/reset-password#token="));
         assertNull(URI.create(link.getValue()).getQuery());
         return URI.create(link.getValue()).getFragment().substring("token=".length());
@@ -109,19 +109,19 @@ class PasswordRecoveryTest {
 
     @Test void acceptsTheAccountEmailWithoutCaseSensitivity() {
         recovery.requestReset("  READER@EXAMPLE.COM  ");
-        verify(emails).sendPasswordResetEmail(eq(email), anyString(), eq(30L));
+        verify(emails).sendPasswordResetEmail(eq(email), nullable(String.class), anyString(), eq(30L));
         assertEquals(1, tokens.count());
     }
 
     @Test void rateLimitsResendsAndANewLinkInvalidatesThePreviousLink() {
         String first = issue();
         recovery.requestReset(email);
-        verify(emails, times(1)).sendPasswordResetEmail(anyString(), anyString(), anyLong());
+        verify(emails, times(1)).sendPasswordResetEmail(anyString(), nullable(String.class), anyString(), anyLong());
         tx.executeWithoutResult(status -> tokens.findAll().getFirst()
                 .setRequestedAt(clock.instant().minusSeconds(121)));
         recovery.requestReset(email);
         var links = ArgumentCaptor.forClass(String.class);
-        verify(emails, times(2)).sendPasswordResetEmail(eq(email), links.capture(), eq(30L));
+        verify(emails, times(2)).sendPasswordResetEmail(eq(email), nullable(String.class), links.capture(), eq(30L));
         String second = URI.create(links.getAllValues().getLast()).getFragment().substring(6);
         assertNotEquals(first, second);
         assertEquals(1, tokens.count());

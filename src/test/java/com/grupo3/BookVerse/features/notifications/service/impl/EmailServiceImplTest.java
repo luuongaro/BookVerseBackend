@@ -13,6 +13,8 @@ import com.grupo3.BookVerse.infrastructure.notifications.MailDelivery;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +33,7 @@ class EmailServiceImplTest {
                 "from",
                 "bookverse@test.com"
         );
+        ReflectionTestUtils.setField(emailService, "frontendUrl", "https://www.bookverse.com.ar");
     }
 
     // Verify that the welcome email is sent correctly
@@ -46,7 +49,7 @@ class EmailServiceImplTest {
                 ArgumentCaptor.forClass(SimpleMailMessage.class);
 
         verify(delivery)
-                .send(messageCaptor.capture());
+                .send(messageCaptor.capture(), anyString());
 
         SimpleMailMessage sentMessage =
                 messageCaptor.getValue();
@@ -62,15 +65,15 @@ class EmailServiceImplTest {
         );
 
         assertEquals(
-                "Welcome to BookVerse fellow reader!",
+                "¡Bienvenida a BookVerse!",
                 sentMessage.getSubject()
         );
 
         assertEquals(
-                "Hi Julieta,\n\n" +
-                        "Welcome to BookVerse! Your account has been created successfully.\n\n" +
-                        "Happy reading,\n" +
-                        "The BookVerse Team",
+                "Hola, Julieta:\n\n" +
+                        "¡Bienvenida a BookVerse! Tu cuenta fue creada correctamente.\n\n" +
+                        "¡Feliz lectura!\n" +
+                        "El equipo de BookVerse",
                 sentMessage.getText()
         );
     }
@@ -84,12 +87,12 @@ class EmailServiceImplTest {
 
         doThrow(new RuntimeException("Mail error"))
                 .when(delivery)
-                .send(any(SimpleMailMessage.class));
+                .send(any(SimpleMailMessage.class), anyString());
 
         emailService.sendWelcomeEmail(to, username);
 
         verify(delivery)
-                .send(any(SimpleMailMessage.class));
+                .send(any(SimpleMailMessage.class), anyString());
     }
 
     @Test
@@ -97,7 +100,7 @@ class EmailServiceImplTest {
         String link = "https://www.bookverse.com.ar/reset-password#token=" + "t".repeat(43);
         emailService.sendPasswordResetEmail("reader@example.com", link, 30);
         var captured = ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(delivery).send(captured.capture());
+        verify(delivery).send(captured.capture(), anyString());
         var mail = captured.getValue();
         assertEquals("reader@example.com", mail.getTo()[0]);
         assertEquals("bookverse@test.com", mail.getFrom());
@@ -113,5 +116,18 @@ class EmailServiceImplTest {
         verify(delivery).send(captured.capture());
         assertEquals("Tu contraseña de BookVerse cambió", captured.getValue().getSubject());
         org.junit.jupiter.api.Assertions.assertFalse(captured.getValue().getText().contains("token="));
+    }
+
+    @Test
+    void socialMailEscapesNamesAndIsInformational() {
+        emailService.sendGroupRequestEmail("owner@example.com", "Sofi", "<script>", "<grupo>");
+        var message = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        var html = ArgumentCaptor.forClass(String.class);
+        verify(delivery).send(message.capture(), html.capture());
+        assertEquals("owner@example.com", message.getValue().getTo()[0]);
+        assertTrue(html.getValue().contains("&lt;script&gt;"));
+        assertTrue(html.getValue().contains("&lt;grupo&gt;"));
+        assertFalse(html.getValue().contains("<script>"));
+        assertFalse(html.getValue().contains("Ver solicitud"));
     }
 }

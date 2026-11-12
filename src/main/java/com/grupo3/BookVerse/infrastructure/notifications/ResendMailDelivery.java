@@ -26,11 +26,21 @@ public class ResendMailDelivery implements MailDelivery {
 
     @Override
     public void send(SimpleMailMessage message) {
+        send(message, null);
+    }
+
+    @Override
+    public void send(SimpleMailMessage message, String html) {
         try {
+            var payload = new java.util.HashMap<String, Object>();
+            payload.put("from", message.getFrom());
+            payload.put("to", List.of(message.getTo()));
+            payload.put("subject", message.getSubject());
+            payload.put("text", message.getText());
+            if (html != null) payload.put("html", html);
             var response = client.post().uri("/emails")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
-                    .body(Map.of("from", message.getFrom(), "to", List.of(message.getTo()),
-                            "subject", message.getSubject(), "text", message.getText()))
+                    .body(payload)
                     .retrieve().toBodilessEntity();
             if (!response.getStatusCode().is2xxSuccessful()) {
                 throw new MailDeliveryException(response.getStatusCode().value());

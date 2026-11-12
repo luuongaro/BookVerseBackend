@@ -77,7 +77,7 @@ public class PasswordRecoveryService {
         tokens.save(token);
         // A fragment keeps the secret out of frontend access logs and Referer headers.
         String link = frontendUrl + "/reset-password#token=" + raw;
-        events.publishEvent(new PasswordResetRequested(user.getEmail(), link, expirationMinutes));
+        events.publishEvent(new PasswordResetRequested(user.getEmail(), user.getProfileUsername(), link, expirationMinutes));
     }
 
     @Transactional

@@ -6,6 +6,8 @@ import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
 import com.grupo3.BookVerse.features.users.domain.UserStatus;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
+import com.grupo3.BookVerse.infrastructure.notifications.SocialMailRequested;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -17,7 +19,8 @@ import java.util.*;
 public class FriendshipService {
     private final FriendshipRepository friendships;
     private final UserRepository users;
-    public FriendshipService(FriendshipRepository friendships, UserRepository users) { this.friendships = friendships; this.users = users; }
+    private final ApplicationEventPublisher events;
+    public FriendshipService(FriendshipRepository friendships, UserRepository users, ApplicationEventPublisher events) { this.friendships = friendships; this.users = users; this.events = events; }
 
     private UserEntity current() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
@@ -30,14 +33,14 @@ public class FriendshipService {
     private FriendshipDto dto(Friendship f, UserEntity me) {
         var other = Objects.equals(f.getUserLow().getId(), me.getId()) ? f.getUserHigh() : f.getUserLow();
         String state = f.getStatus() == Friendship.Status.ACCEPTED ? "FRIENDS" : Objects.equals(f.getRequester().getId(), me.getId()) ? "OUTGOING" : "INCOMING";
-        return new FriendshipDto(f.getIdExternal(), other.getIdExternal(), other.getUsername(), state, f.getCreatedAt());
+        return new FriendshipDto(f.getIdExternal(), other.getIdExternal(), other.getProfileUsername(), state, f.getCreatedAt());
     }
     @Transactional(readOnly = true)
     public FriendshipDto relationship(UUID userId) {
         var me = current(); var other = target(userId);
         if (Objects.equals(me.getId(), other.getId())) throw new BadRequestException("Cannot befriend yourself");
         long low = Math.min(me.getId(), other.getId()), high = Math.max(me.getId(), other.getId());
-        return friendships.findPair(low, high).map(f -> dto(f, me)).orElse(new FriendshipDto(null, other.getIdExternal(), other.getUsername(), "NONE", null));
+        return friendships.findPair(low, high).map(f -> dto(f, me)).orElse(new FriendshipDto(null, other.getIdExternal(), other.getProfileUsername(), "NONE", null));
     }
     @Transactional
     public FriendshipDto request(UUID userId) {
@@ -51,7 +54,9 @@ public class FriendshipService {
         var f = new Friendship(); f.setIdExternal(UUID.randomUUID()); f.setUserLow(lower); f.setUserHigh(higher);
         f.setRequester(Objects.equals(me.getId(), low) ? lower : higher); f.setStatus(Friendship.Status.PENDING);
         f.setCreatedAt(LocalDateTime.now()); f.setUpdatedAt(f.getCreatedAt());
-        return dto(friendships.save(f), me);
+        var saved = friendships.save(f);
+        events.publishEvent(new SocialMailRequested(other.getEmail(), other.getProfileUsername(), me.getProfileUsername(), null));
+        return dto(saved, me);
     }
     @Transactional(readOnly = true)
     public List<FriendshipDto> pending() {
