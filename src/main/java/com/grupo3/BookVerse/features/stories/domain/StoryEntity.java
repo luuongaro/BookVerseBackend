@@ -29,6 +29,9 @@ public class StoryEntity {
     @Column(nullable = false, length = 150)
     private String title;
 
+    @Column(length = 80)
+    private String genre;
+
     @Column(nullable = false, length = 1000)
     private String description;
 

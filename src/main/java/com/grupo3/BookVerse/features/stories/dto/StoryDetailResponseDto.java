@@ -21,6 +21,7 @@ public class StoryDetailResponseDto {
     private UUID authorId;
     private String authorUsername;
     private String title;
+    private String genre;
     private String description;
     private StoryAccessType accessType;
     private boolean hidden;

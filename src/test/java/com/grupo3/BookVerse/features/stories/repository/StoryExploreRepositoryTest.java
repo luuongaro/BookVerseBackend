@@ -1,6 +1,7 @@
 package com.grupo3.BookVerse.features.stories.repository;
 
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
+import com.grupo3.BookVerse.features.friends.Friendship;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionEntity;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionType;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
@@ -39,8 +40,17 @@ class StoryExploreRepositoryTest {
                 .passwordHash("test-only").subscription(plan).build();
         em.persist(reader);
         em.persist(other);
+        var friendship = new Friendship();
+        friendship.setIdExternal(java.util.UUID.randomUUID());
+        friendship.setUserLow(reader);
+        friendship.setUserHigh(other);
+        friendship.setRequester(reader);
+        friendship.setStatus(Friendship.Status.PENDING);
+        friendship.setCreatedAt(java.time.LocalDateTime.now());
+        friendship.setUpdatedAt(java.time.LocalDateTime.now());
+        em.persist(friendship);
         for (int i = 0; i < 8; i++) {
-            var story = StoryEntity.builder().title("Story " + i).description("Description")
+            var story = StoryEntity.builder().title("Story " + i).description("Description").genre(i == 5 || i == 6 ? "Fantasía" : "Romance")
                     .author(i < 3 ? reader : other).build();
             em.persist(story);
             // Lifecycle defaults run on persist; apply hidden/deleted flags afterwards.
@@ -60,6 +70,18 @@ class StoryExploreRepositoryTest {
         assertTrue(first.getContent().stream().noneMatch(item -> item.isHidden() || item.isDeleted()));
         assertTrue(first.getContent().stream().noneMatch(item -> item.getTitle().matches("Story [0-4]")));
         assertFalse(last.getContent().getFirst().getIdExternal().equals(first.getContent().getFirst().getIdExternal()));
+        var filtered = stories.searchExplore(reader.getId(), "story", "OTHER", "fantas", false, Friendship.Status.ACCEPTED, PageRequest.of(0, 1));
+        assertEquals(2, filtered.getTotalElements());
+        assertEquals(2, filtered.getTotalPages());
+        assertEquals(0, stories.searchExplore(reader.getId(), "Story 3", "", "", false, Friendship.Status.ACCEPTED, PageRequest.of(0, 10)).getTotalElements());
+        assertEquals(0, stories.searchExplore(reader.getId(), "", "reader", "", false, Friendship.Status.ACCEPTED, PageRequest.of(0, 10)).getTotalElements());
+        assertEquals(0, stories.searchExplore(reader.getId(), "", "", "", true, Friendship.Status.ACCEPTED, PageRequest.of(0, 10)).getTotalElements());
+        var update = factory.createEntityManager();
+        update.getTransaction().begin();
+        update.find(Friendship.class, friendship.getId()).setStatus(Friendship.Status.ACCEPTED);
+        update.getTransaction().commit();
+        update.close();
+        assertEquals(2, stories.searchExplore(reader.getId(), "", "", "fantas", true, Friendship.Status.ACCEPTED, PageRequest.of(0, 1)).getTotalElements());
     }
 
     @Configuration

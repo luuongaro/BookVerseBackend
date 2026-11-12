@@ -57,6 +57,17 @@ public class StoryController {
         return ResponseEntity.ok(storyService.getStoriesToExplore(pageable));
     }
 
+    @GetMapping("/explore/search")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Page<StoryResponseDto>> searchExplore(
+            @RequestParam(defaultValue = "") String title,
+            @RequestParam(defaultValue = "") String author,
+            @RequestParam(defaultValue = "") String genre,
+            @RequestParam(defaultValue = "false") boolean friendsOnly,
+            Pageable pageable) {
+        return ResponseEntity.ok(storyService.searchStoriesToExplore(title, author, genre, friendsOnly, pageable));
+    }
+
     @GetMapping("/{idExternal}")
     @PreAuthorize("isAuthenticated()")
     @Operation(
