@@ -14,10 +14,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class FriendshipServiceTest {
-    FriendshipRepository repo; UserRepository users; FriendshipService service;
+    FriendshipRepository repo; UserRepository users; FriendshipService service; org.springframework.context.ApplicationEventPublisher events;
     UserEntity sender, recipient, outsider; UUID requestId;
     @BeforeEach void setup() {
-        repo = mock(FriendshipRepository.class); users = mock(UserRepository.class); service = new FriendshipService(repo, users);
+        repo = mock(FriendshipRepository.class); users = mock(UserRepository.class); events = mock(org.springframework.context.ApplicationEventPublisher.class); service = new FriendshipService(repo, users, events);
         sender = UserEntity.builder().id(1L).idExternal(UUID.randomUUID()).username("sender").status(UserStatus.ACTIVE).build();
         recipient = UserEntity.builder().id(2L).idExternal(UUID.randomUUID()).username("recipient").status(UserStatus.ACTIVE).build();
         outsider = UserEntity.builder().id(3L).idExternal(UUID.randomUUID()).username("outsider").status(UserStatus.ACTIVE).build(); requestId = UUID.randomUUID();
@@ -41,6 +41,14 @@ class FriendshipServiceTest {
         authenticate(outsider); assertThrows(AccessDeniedException.class, () -> service.respond(requestId, true));
         authenticate(recipient); service.respond(requestId, true); assertEquals(Friendship.Status.ACCEPTED, f.getStatus());
         assertThrows(BadRequestException.class, () -> service.respond(requestId, true));
+    }
+    @Test void requestPublishesNoticeForRecipient() {
+        recipient.setEmail("recipient@example.com");
+        when(users.findByIdExternalAndStatus(recipient.getIdExternal(), UserStatus.ACTIVE)).thenReturn(Optional.of(recipient));
+        when(users.lockActiveUser(1L)).thenReturn(Optional.of(sender)); when(users.lockActiveUser(2L)).thenReturn(Optional.of(recipient));
+        when(repo.save(any())).thenAnswer(call -> call.getArgument(0));
+        service.request(recipient.getIdExternal());
+        verify(events).publishEvent(new com.grupo3.BookVerse.infrastructure.notifications.SocialMailRequested("recipient@example.com", "recipient", "sender", null));
     }
     @Test void onlyRecipientCanRejectAndOnlySenderCanCancel() {
         var f = pending(); when(repo.findByExternalForUpdate(requestId)).thenReturn(Optional.of(f));

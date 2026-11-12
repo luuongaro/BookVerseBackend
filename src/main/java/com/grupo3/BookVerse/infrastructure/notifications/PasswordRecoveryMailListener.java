@@ -18,7 +18,7 @@ public class PasswordRecoveryMailListener {
     @TransactionalEventListener
     public void resetRequested(PasswordResetRequested event) {
         try {
-            emails.sendPasswordResetEmail(event.email(), event.link(), event.expirationMinutes());
+            emails.sendPasswordResetEmail(event.email(), event.username(), event.link(), event.expirationMinutes());
         } catch (TaskRejectedException ignored) {
             log.error("Password recovery email queue is full");
         }

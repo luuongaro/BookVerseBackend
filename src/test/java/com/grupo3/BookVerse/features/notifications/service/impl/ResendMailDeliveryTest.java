@@ -51,6 +51,16 @@ class ResendMailDeliveryTest {
         assertDoesNotThrow(() -> delivery.send(message()));
     }
 
+    @Test void sendsHtmlAlongsideThePlainText() {
+        server.expect(requestTo("https://api.resend.com/emails"))
+                .andExpect(content().json("""
+                        {"text":"https://www.bookverse.com.ar/reset-password#token=test-token",
+                         "html":"<p>Hola</p>"}
+                        """))
+                .andRespond(withSuccess("{\"id\":\"sent\"}", MediaType.APPLICATION_JSON));
+        delivery.send(message(), "<p>Hola</p>");
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {307, 401, 403, 422, 429, 500, 503})
     void failedResponsesExposeOnlyTheStatusAndNeverTheProviderBody(int status) {
