@@ -148,6 +148,23 @@ public class GroupGoalsServiceImpl implements GroupGoalsService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<GroupGoalsResponseDto> getGoalsByGroupId(UUID groupId) {
+        ReadingGroupEntity group = findGroupByIdExternal(groupId);
+        validateGroupIsActive(group);
+
+        UserEntity authenticatedUser = getAuthenticatedUser();
+        validateCanViewGoals(group, authenticatedUser);
+
+        List<GroupGoalsEntity> goals =
+                groupGoalsRepository.findByGroup_IdExternalOrderByUpdatedAtDesc(
+                        groupId
+                );
+
+        return groupGoalsMapper.toResponseDtoList(goals);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public GroupGoalsResponseDto getActiveGoalByCycleId(
             UUID groupId,
             UUID cycleId
