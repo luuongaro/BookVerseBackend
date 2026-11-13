@@ -26,6 +26,8 @@ public interface GroupGoalsService {
             UUID cycleId
     );
 
+    List<GroupGoalsResponseDto> getGoalsByGroupId(UUID groupId);
+
     GroupGoalsResponseDto getActiveGoalByCycleId(
             UUID groupId,
             UUID cycleId
