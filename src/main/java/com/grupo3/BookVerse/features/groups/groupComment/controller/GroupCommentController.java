@@ -146,5 +146,6 @@ public class GroupCommentController {
         groupCommentService.deleteComment(commentId);
         return ResponseEntity.noContent().build();
     }
+
 }
 

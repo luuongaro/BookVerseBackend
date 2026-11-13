@@ -229,6 +229,118 @@ public class GroupCommentServiceImpl implements GroupCommentService {
 
     @Override
     @Transactional(readOnly = true)
+    public GroupCommentsVisibilityResponseDto getVisibleCommentsByCycleId(
+            UUID groupId,
+            UUID cycleId
+    ) {
+        findGroupByIdExternal(groupId);
+
+        GroupReadingCycleEntity cycle =
+                findCycleForGroup(
+                        groupId,
+                        cycleId
+                );
+
+        if (cycle.getStatus() == GroupReadingCycleStatus.PLANNED) {
+            throw new BadRequestException(
+                    "Comments cannot be viewed for a planned reading cycle"
+            );
+        }
+
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
+
+        List<GroupCommentEntity> activeComments =
+                findActiveCommentsForCycle(cycle);
+
+        if (isAdminOrModerator(authenticatedUser)) {
+            return buildVisibilityResponse(
+                    activeComments,
+                    activeComments
+            );
+        }
+
+        validateActiveMembership(
+                groupId,
+                authenticatedUser
+        );
+
+        ReadingStatusEntity readingStatus =
+                findReadingStatusForCycle(
+                        cycle,
+                        authenticatedUser
+                );
+
+        validateReadingStatus(readingStatus);
+
+        double currentProgressPercentage =
+                normalizeToPercentage(
+                        readingStatus.getProgressType(),
+                        readingStatus.getProgressValue(),
+                        cycle
+                );
+
+        List<GroupCommentEntity> visibleComments =
+                activeComments.stream()
+                        .filter(comment ->
+                                isCommentVisible(
+                                        comment,
+                                        currentProgressPercentage,
+                                        cycle
+                                )
+                        )
+                        .toList();
+
+        return buildVisibilityResponse(
+                activeComments,
+                visibleComments
+        );
+    }
+
+    private GroupReadingCycleEntity findCycleForGroup(
+            UUID groupId,
+            UUID cycleId
+    ) {
+        return groupReadingCycleRepository
+                .findByIdExternalAndGroup_IdExternal(
+                        cycleId,
+                        groupId
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Reading cycle not found for group: "
+                                        + groupId
+                        )
+                );
+    }
+
+    private GroupCommentsVisibilityResponseDto buildVisibilityResponse(
+            List<GroupCommentEntity> activeComments,
+            List<GroupCommentEntity> visibleComments
+    ) {
+        int totalActiveComments =
+                activeComments.size();
+
+        int visibleCount =
+                visibleComments.size();
+
+        int hiddenByProgressCount =
+                totalActiveComments - visibleCount;
+
+        return GroupCommentsVisibilityResponseDto.builder()
+                .comments(
+                        groupCommentMapper.toResponseDtoList(
+                                visibleComments
+                        )
+                )
+                .totalActiveComments(totalActiveComments)
+                .visibleCount(visibleCount)
+                .hiddenByProgressCount(hiddenByProgressCount)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<GroupCommentResponseDto> getActiveCommentsByUserId(
             UUID userId
     ) {

@@ -29,4 +29,9 @@ public interface GroupCommentService {
     void deleteComment(
             UUID commentId
     );
+
+    GroupCommentsVisibilityResponseDto getVisibleCommentsByCycleId(
+            UUID groupId,
+            UUID cycleId
+    );
 }
