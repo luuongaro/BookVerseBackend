@@ -7,6 +7,7 @@ import com.grupo3.BookVerse.features.groups.groupComment.domain.GroupCommentStat
 import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentRequestDto;
 import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentResponseDto;
 import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentsVisibilityResponseDto;
+import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentUpdateRequestDto;
 import com.grupo3.BookVerse.features.groups.groupComment.mappers.GroupCommentMapper;
 import com.grupo3.BookVerse.features.groups.groupComment.repository.GroupCommentRepository;
 import com.grupo3.BookVerse.features.groups.groupComment.service.GroupCommentService;
@@ -135,6 +136,98 @@ public class GroupCommentServiceImpl implements GroupCommentService {
                 groupCommentRepository.save(comment);
 
         return groupCommentMapper.toResponseDto(savedComment);
+    }
+
+    @Override
+    @Transactional
+    public GroupCommentResponseDto updateComment(
+            UUID commentId,
+            GroupCommentUpdateRequestDto requestDto
+    ) {
+        GroupCommentEntity comment =
+                findCommentByIdExternal(commentId);
+
+        UserEntity authenticatedUser =
+                getAuthenticatedUser();
+
+        boolean isAuthor =
+                comment.getUser() != null
+                        && Objects.equals(
+                        comment.getUser().getIdExternal(),
+                        authenticatedUser.getIdExternal()
+                );
+
+        if (!isAuthor) {
+            throw new AccessDeniedException(
+                    "Only the comment author can edit this comment"
+            );
+        }
+
+        if (comment.getStatus() != GroupCommentStatus.ACTIVE) {
+            throw new BadRequestException(
+                    "Only active comments can be edited"
+            );
+        }
+
+        GroupReadingCycleEntity cycle =
+                comment.getReadingCycle();
+
+        if (cycle == null) {
+            throw new ResourceNotFoundException(
+                    "Reading cycle not found for this comment"
+            );
+        }
+
+        ReadingStatusEntity readingStatus =
+                findReadingStatusForCycle(
+                        cycle,
+                        authenticatedUser
+                );
+
+        validateReadingStatus(readingStatus);
+
+        validateProgressReference(
+                requestDto.getProgressType(),
+                requestDto.getProgressValue(),
+                cycle
+        );
+
+        double currentProgressPercentage =
+                normalizeToPercentage(
+                        readingStatus.getProgressType(),
+                        readingStatus.getProgressValue(),
+                        cycle
+                );
+
+        double commentProgressPercentage =
+                normalizeToPercentage(
+                        requestDto.getProgressType(),
+                        requestDto.getProgressValue(),
+                        cycle
+                );
+
+        if (commentProgressPercentage > currentProgressPercentage) {
+            throw new BadRequestException(
+                    "You cannot set the comment beyond your current reading progress"
+            );
+        }
+
+        comment.setContent(
+                requestDto.getContent().trim()
+        );
+
+        comment.setProgressType(
+                requestDto.getProgressType()
+        );
+
+        comment.setProgressValue(
+                requestDto.getProgressValue()
+        );
+
+        GroupCommentEntity updated =
+                groupCommentRepository.save(comment);
+
+        return groupCommentMapper.toResponseDto(updated);
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.grupo3.BookVerse.features.groups.groupComment.service;
 
 import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentRequestDto;
 import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentResponseDto;
+import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentUpdateRequestDto;
 import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentsVisibilityResponseDto;
 
 import java.util.List;
@@ -33,5 +34,10 @@ public interface GroupCommentService {
     GroupCommentsVisibilityResponseDto getVisibleCommentsByCycleId(
             UUID groupId,
             UUID cycleId
+    );
+
+    GroupCommentResponseDto updateComment(
+            UUID commentId,
+            GroupCommentUpdateRequestDto requestDto
     );
 }

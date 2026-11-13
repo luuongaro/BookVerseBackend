@@ -1,6 +1,7 @@
 package com.grupo3.BookVerse.features.groups.groupComment.controller;
 
 import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentResponseDto;
+import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentUpdateRequestDto;
 import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentsVisibilityResponseDto;
 import com.grupo3.BookVerse.features.groups.groupComment.service.GroupCommentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -147,5 +148,54 @@ public class GroupCommentController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{commentId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Update a group comment",
+            description = """
+                Updates an active group comment.
+                Only the comment author can edit it.
+                The updated spoiler progress cannot exceed
+                the author's current reading progress.
+                """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Comment updated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid comment state or progress",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only the comment author can edit it",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Comment or reading status not found",
+                    content = @Content
+            )
+    })
+    public ResponseEntity<GroupCommentResponseDto> updateComment(
+            @PathVariable UUID commentId,
+            @Valid @RequestBody GroupCommentUpdateRequestDto requestDto
+    ) {
+        return ResponseEntity.ok(
+                groupCommentService.updateComment(
+                        commentId,
+                        requestDto
+                )
+        );
+    }
 }
 
