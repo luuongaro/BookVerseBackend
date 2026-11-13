@@ -1,9 +1,9 @@
 package com.grupo3.BookVerse.features.groups.groupComment.dto;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
+import com.grupo3.BookVerse.features.status.domain.ProgressType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.*;
 
 @Data
@@ -12,12 +12,13 @@ import lombok.*;
 @Builder
 public class GroupCommentRequestDto {
 
-
     @NotBlank(message = "Content is required")
     private String content;
 
-    @NotNull(message = "Progress percent is required")
-    @Min(value = 0, message = "Progress percent must be at least 0")
-    @Max(value = 100, message = "Progress percent must be at most 100")
-    private Integer progressPercent;
+    @NotNull(message = "Progress type is required")
+    private ProgressType progressType;
+
+    @NotNull(message = "Progress value is required")
+    @Positive(message = "Progress value must be greater than 0")
+    private Integer progressValue;
 }

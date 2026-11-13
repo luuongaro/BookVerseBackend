@@ -1,7 +1,7 @@
-
 package com.grupo3.BookVerse.features.groups.groupComment.controller;
 
 import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentResponseDto;
+import com.grupo3.BookVerse.features.groups.groupComment.dto.GroupCommentsVisibilityResponseDto;
 import com.grupo3.BookVerse.features.groups.groupComment.service.GroupCommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -73,7 +73,7 @@ public class GroupCommentController {
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content),
             @ApiResponse(responseCode = "404", description = "Reading group not found", content = @Content)
     })
-    public ResponseEntity<List<GroupCommentResponseDto>> getVisibleCommentsByGroupId(
+    public ResponseEntity<GroupCommentsVisibilityResponseDto> getVisibleCommentsByGroupId(
             @Parameter(
                     description = "External UUID of the reading group",
                     required = true
