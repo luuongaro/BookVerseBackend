@@ -54,33 +54,130 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponseDto createUser(UserRequestDto dto) {
-        if (userRepository.existsByEmailIgnoreCase(dto.email().trim())) {
-            throw new DuplicateResourceException("Email is already in use");
+
+        String normalizedEmail =
+                normalizeEmail(dto.email());
+
+        String normalizedUsername =
+                dto.username().trim();
+
+        Optional<UserEntity> existingUserOptional =
+                userRepository.findByEmailWithRoles(
+                        normalizedEmail
+                );
+
+        if (existingUserOptional.isPresent()) {
+
+            UserEntity existingUser =
+                    existingUserOptional.get();
+
+            if (existingUser.getStatus() == UserStatus.ACTIVE) {
+                throw new DuplicateResourceException(
+                        "Email is already in use"
+                );
+            }
+
+            if (existingUser.getStatus() == UserStatus.SUSPENDED) {
+                throw new BadRequestException(
+                        "Suspended accounts cannot be reactivated through registration"
+                );
+            }
+
+            if (existingUser.getStatus() == UserStatus.BANNED) {
+                throw new BadRequestException(
+                        "Banned accounts cannot be reactivated through registration"
+                );
+            }
+
+            if (existingUser.getStatus() != UserStatus.INACTIVE) {
+                throw new BadRequestException(
+                        "This account cannot be reactivated through registration"
+                );
+            }
+
+            return reactivateUser(
+                    existingUser,
+                    normalizedUsername,
+                    dto.password()
+            );
         }
 
-        if (userRepository.existsByUsernameIgnoreCase(dto.username().trim())) {
-            throw new DuplicateResourceException("Username is already in use");
+        if (userRepository.existsByUsernameIgnoreCase(
+                normalizedUsername
+        )) {
+            throw new DuplicateResourceException(
+                    "Username is already in use"
+            );
         }
 
         SubscriptionEntity subscription =
-                findSubscriptionByIdExternal(dto.subscriptionId());
-
-        RoleEntity defaultRole = roleRepository.findByNameIgnoreCase(DEFAULT_ROLE)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Default role not found: " + DEFAULT_ROLE
-                        )
+                findSubscriptionByIdExternal(
+                        dto.subscriptionId()
                 );
 
-        UserEntity user = userMapper.toEntity(dto);
-        user.setUsername(dto.username().trim());
-        user.setEmail(normalizeEmail(dto.email()));
-        user.setPasswordHash(passwordEncoder.encode(dto.password()));
+        RoleEntity defaultRole =
+                roleRepository
+                        .findByNameIgnoreCase(DEFAULT_ROLE)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Default role not found: "
+                                                + DEFAULT_ROLE
+                                )
+                        );
+
+        UserEntity user =
+                userMapper.toEntity(dto);
+
+        user.setUsername(normalizedUsername);
+        user.setEmail(normalizedEmail);
+        user.setPasswordHash(
+                passwordEncoder.encode(dto.password())
+        );
         user.setSubscription(subscription);
         user.getRoles().add(defaultRole);
 
-        UserEntity saved = userRepository.save(user);
+        UserEntity saved =
+                userRepository.save(user);
+
         return userMapper.toResponseDto(saved);
+    }
+
+    private UserResponseDto reactivateUser(
+            UserEntity existingUser,
+            String requestedUsername,
+            String newPassword
+    ) {
+        boolean usernameBelongsToAnotherUser =
+                userRepository
+                        .existsByUsernameIgnoreCaseAndIdNot(
+                                requestedUsername,
+                                existingUser.getId()
+                        );
+
+        if (usernameBelongsToAnotherUser) {
+            throw new DuplicateResourceException(
+                    "Username is already in use"
+            );
+        }
+
+        existingUser.setUsername(requestedUsername);
+
+        existingUser.setPasswordHash(
+                passwordEncoder.encode(newPassword)
+        );
+
+        existingUser.setCredentialsVersion(
+                existingUser.getCredentialsVersion() + 1
+        );
+
+        existingUser.setStatus(UserStatus.ACTIVE);
+
+        UserEntity reactivatedUser =
+                userRepository.save(existingUser);
+
+        return userMapper.toResponseDto(
+                reactivatedUser
+        );
     }
 
     @Override
