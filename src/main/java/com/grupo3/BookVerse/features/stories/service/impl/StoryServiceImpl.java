@@ -2,8 +2,8 @@ package com.grupo3.BookVerse.features.stories.service.impl;
 
 import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
-import com.grupo3.BookVerse.features.chapters.domain.ChapterEntity;
-import com.grupo3.BookVerse.features.chapters.mappers.ChapterMapper;
+import com.grupo3.BookVerse.features.chapters.dto.ChapterSummaryDto;
+import com.grupo3.BookVerse.features.chapters.repository.ChapterRepository;
 import com.grupo3.BookVerse.features.stories.domain.StoryAccessType;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.stories.dto.StoryDetailResponseDto;
@@ -25,7 +25,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,8 +34,14 @@ public class StoryServiceImpl implements StoryService {
 
     private final StoryRepository storyRepository;
     private final StoryMapper storyMapper;
-    private final ChapterMapper chapterMapper;
+    private final ChapterRepository chapterRepository;
     private final UserRepository userRepository;
+
+    private StoryResponseDto toResponseDto(StoryEntity story) {
+        StoryResponseDto response = storyMapper.toResponseDto(story);
+        response.setChaptersCount(Math.toIntExact(chapterRepository.countByStoryId(story.getId())));
+        return response;
+    }
 
     @Override
     @Transactional
@@ -51,7 +56,7 @@ public class StoryServiceImpl implements StoryService {
         storyEntity.setAuthor(author);
 
         StoryEntity savedStory = storyRepository.save(storyEntity);
-        return storyMapper.toResponseDto(savedStory);
+        return toResponseDto(savedStory);
     }
 
     @Override
@@ -61,7 +66,7 @@ public class StoryServiceImpl implements StoryService {
         Page<StoryEntity> stories =
                 storyRepository.findAllByDeletedFalseOrderByCreatedAtDesc(pageable);
 
-        return stories.map(storyMapper::toResponseDto);
+        return stories.map(this::toResponseDto);
     }
 
     @Override
@@ -70,13 +75,13 @@ public class StoryServiceImpl implements StoryService {
         UserEntity reader = getAuthenticatedUser();
         return storyRepository
                 .findByAuthorIdNotAndDeletedFalseAndHiddenFalseOrderByCreatedAtDesc(reader.getId(), pageable)
-                .map(storyMapper::toResponseDto);
+                .map(this::toResponseDto);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<StoryResponseDto> searchStoriesToExplore(String title, String author, String genre, boolean friendsOnly, Pageable pageable) {
-        return storyRepository.searchExplore(getAuthenticatedUser().getId(), title.strip(), author.strip(), genre.strip(), friendsOnly, com.grupo3.BookVerse.features.friends.Friendship.Status.ACCEPTED, pageable).map(storyMapper::toResponseDto);
+        return storyRepository.searchExplore(getAuthenticatedUser().getId(), title.strip(), author.strip(), genre.strip(), friendsOnly, com.grupo3.BookVerse.features.friends.Friendship.Status.ACCEPTED, pageable).map(this::toResponseDto);
     }
 
     @Override
@@ -96,30 +101,9 @@ public class StoryServiceImpl implements StoryService {
 
         boolean canManage = canManageStory(story, authenticatedUser);
 
-        List<ChapterEntity> visibleChapters =
-                story.getChapters() == null
-                        ? List.of()
-                        : story.getChapters()
-                        .stream()
-                        .filter(chapter ->
-                                !chapter.isDeleted()
-                                        && (
-                                        canManage
-                                                || chapter.isPublished()
-                                )
-                        )
-                        .sorted(
-                                Comparator.comparingInt(
-                                        ChapterEntity::getChapterNumber
-                                )
-                        )
-                        .toList();
-
-        int publishedChaptersCount = story.getChapters() == null
-                ? 0
-                : (int) story.getChapters().stream()
-                .filter(chapter -> chapter.isPublished() && !chapter.isDeleted())
-                .count();
+        List<ChapterSummaryDto> visibleChapters = chapterRepository.findSummaries(story.getId(), canManage);
+        int publishedChaptersCount = Math.toIntExact(
+                chapterRepository.countByStoryIdAndDeletedFalseAndPublishedTrue(story.getId()));
 
         return StoryDetailResponseDto.builder()
                 .idExternal(story.getIdExternal())
@@ -135,7 +119,7 @@ public class StoryServiceImpl implements StoryService {
                 .updatedAt(story.getUpdatedAt())
                 .chaptersCount(visibleChapters.size())
                 .publishedChaptersCount(publishedChaptersCount)
-                .chapters(chapterMapper.toSummaryDtoList(visibleChapters))
+                .chapters(visibleChapters)
                 .build();
     }
 
@@ -148,7 +132,7 @@ public class StoryServiceImpl implements StoryService {
         Page<StoryEntity> stories =
                 storyRepository.findByAuthorIdAndDeletedFalseOrderByCreatedAtDesc(author.getId(), pageable);
 
-        return stories.map(storyMapper::toResponseDto);
+        return stories.map(this::toResponseDto);
     }
 
     @Override
@@ -173,7 +157,7 @@ public class StoryServiceImpl implements StoryService {
 
         StoryEntity updatedStory = storyRepository.save(existingStory);
 
-        return storyMapper.toResponseDto(updatedStory);
+        return toResponseDto(updatedStory);
     }
 
     @Override

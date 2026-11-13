@@ -1,6 +1,5 @@
 package com.grupo3.BookVerse.features.stories.mappers;
 
-import com.grupo3.BookVerse.features.chapters.domain.ChapterEntity;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.stories.dto.StoryRequestDto;
 import com.grupo3.BookVerse.features.stories.dto.StoryResponseDto;
@@ -24,12 +23,9 @@ public interface StoryMapper {
 
     @Mapping(target = "authorId", source = "author.idExternal")
     @Mapping(target = "authorUsername", expression = "java(storyEntity.getAuthor() == null ? null : storyEntity.getAuthor().getProfileUsername())")
-    @Mapping(target = "chaptersCount", expression = "java(mapChaptersCount(storyEntity.getChapters()))")
+    @Mapping(target = "chaptersCount", ignore = true)
     StoryResponseDto toResponseDto(StoryEntity storyEntity);
 
     List<StoryResponseDto> toResponseDtoList(List<StoryEntity> stories);
 
-    default Integer mapChaptersCount(List<ChapterEntity> chapters) {
-        return chapters != null ? chapters.size() : 0;
-    }
 }
