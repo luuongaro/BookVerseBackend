@@ -2,7 +2,7 @@ package com.grupo3.BookVerse.features.stories.service.impl;
 
 import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
-import com.grupo3.BookVerse.features.chapters.mappers.ChapterMapper;
+import com.grupo3.BookVerse.features.chapters.repository.ChapterRepository;
 import com.grupo3.BookVerse.features.stories.domain.StoryAccessType;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
 import com.grupo3.BookVerse.features.stories.dto.StoryDetailResponseDto;
@@ -44,7 +44,7 @@ class StoryServiceImplTest {
     private StoryMapper storyMapper;
 
     @Mock
-    private ChapterMapper chapterMapper;
+    private ChapterRepository chapterRepository;
 
     @Mock
     private UserRepository userRepository;

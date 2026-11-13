@@ -1,6 +1,8 @@
 package com.grupo3.BookVerse.features.stories.repository;
 
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
+import com.grupo3.BookVerse.features.chapters.domain.ChapterEntity;
+import com.grupo3.BookVerse.features.chapters.repository.ChapterRepository;
 import com.grupo3.BookVerse.features.friends.Friendship;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionEntity;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionType;
@@ -26,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class StoryExploreRepositoryTest {
     @Autowired EntityManagerFactory factory;
     @Autowired StoryRepository stories;
+    @Autowired ChapterRepository chapters;
 
     @Test
     void filtersOwnHiddenAndDeletedStoriesBeforeCountingAndPaginating() {
@@ -83,10 +86,28 @@ class StoryExploreRepositoryTest {
         update.close();
         assertEquals(2, stories.searchExplore(reader.getId(), "", "", "Fantasía", true, Friendship.Status.ACCEPTED, PageRequest.of(0, 1)).getTotalElements());
         assertEquals(java.util.Set.of("Fantasía", "Romance"), new java.util.HashSet<>(stories.findExploreGenres(reader.getId())));
+
+        var addChapters = factory.createEntityManager();
+        addChapters.getTransaction().begin();
+        var persistedStory = addChapters.find(StoryEntity.class, first.getContent().getFirst().getId());
+        var published = ChapterEntity.builder().story(persistedStory).chapterNumber(1).title("Publicado").content("Texto privado").published(true).build();
+        var draft = ChapterEntity.builder().story(persistedStory).chapterNumber(2).title("Borrador").content("Texto privado").published(false).build();
+        var deleted = ChapterEntity.builder().story(persistedStory).chapterNumber(3).title("Eliminado").content("Texto privado").published(true).build();
+        addChapters.persist(published);
+        addChapters.persist(draft);
+        addChapters.persist(deleted);
+        deleted.setDeleted(true);
+        addChapters.getTransaction().commit();
+        addChapters.close();
+        assertEquals(3, chapters.countByStoryId(persistedStory.getId()));
+        assertEquals(1, chapters.countByStoryIdAndDeletedFalseAndPublishedTrue(persistedStory.getId()));
+        assertEquals(java.util.List.of("Publicado"), chapters.findSummaries(persistedStory.getId(), false).stream().map(c -> c.getTitle()).toList());
+        assertEquals(java.util.List.of("Publicado", "Borrador"), chapters.findSummaries(persistedStory.getId(), true).stream().map(c -> c.getTitle()).toList());
+
     }
 
     @Configuration
-    @EnableJpaRepositories(basePackageClasses = StoryRepository.class)
+    @EnableJpaRepositories(basePackageClasses = {StoryRepository.class, ChapterRepository.class})
     static class Config {
         @Bean DataSource dataSource() {
             return new DriverManagerDataSource("jdbc:h2:mem:story-explore;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
