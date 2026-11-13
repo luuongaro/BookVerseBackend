@@ -143,9 +143,6 @@ class StoryServiceImplTest {
     @Test
     void createStory_ShouldCreateSuccessfully() {
 
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
-
         when(storyRepository.countByAuthorIdAndDeletedFalse(1L))
                 .thenReturn(0L);
 
@@ -168,37 +165,14 @@ class StoryServiceImplTest {
     }
 
     @Test
-    void createStory_ShouldThrowWhenUserNotFound() {
-
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.empty());
-
-        assertThrows(
-                ResourceNotFoundException.class,
-                () -> storyService.createStory(requestDto)
-        );
-    }
-
-    @Test
-    void createStory_ShouldThrowWhenDifferentAuthor() {
-
-        UserEntity anotherUser = new UserEntity();
-        anotherUser.setId(99L);
-
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(anotherUser));
-
-        assertThrows(
-                AccessDeniedException.class,
-                () -> storyService.createStory(requestDto)
-        );
+    void createStory_RequiresAuthenticatedUser() {
+        SecurityContextHolder.clearContext();
+        assertThrows(AccessDeniedException.class, () -> storyService.createStory(requestDto));
+        verify(storyRepository, never()).save(any());
     }
 
     @Test
     void createStory_ShouldThrowWhenMaxStoriesReached() {
-
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
 
         when(storyRepository.countByAuthorIdAndDeletedFalse(1L))
                 .thenReturn(10L);
@@ -313,8 +287,7 @@ class StoryServiceImplTest {
     @Test
     void getStoriesByAuthorId_ShouldReturnStories() {
 
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
+        when(userRepository.findByIdExternal(userId)).thenReturn(Optional.of(user));
 
         Page<StoryEntity> page =
                 new PageImpl<>(List.of(story));
@@ -352,9 +325,6 @@ class StoryServiceImplTest {
         requestDto.setAccessType(
                 StoryAccessType.PREMIUM
         );
-
-        when(userRepository.findByIdExternal(userId))
-                .thenReturn(Optional.of(user));
 
         when(storyRepository.countByAuthorIdAndDeletedFalse(1L))
                 .thenReturn(0L);
