@@ -1,6 +1,5 @@
 package com.grupo3.BookVerse.features.groups.groupComment.repository;
 
-
 import com.grupo3.BookVerse.features.groups.groupComment.domain.GroupCommentEntity;
 import com.grupo3.BookVerse.features.groups.groupComment.domain.GroupCommentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,12 +10,22 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface GroupCommentRepository extends JpaRepository<GroupCommentEntity, Long> {
+public interface GroupCommentRepository
+        extends JpaRepository<GroupCommentEntity, Long> {
 
-    Optional<GroupCommentEntity> findByIdExternal(UUID idExternal);
+    Optional<GroupCommentEntity> findByIdExternal(
+            UUID idExternal
+    );
 
-    List<GroupCommentEntity> findByUserIdExternalAndStatusOrderByCreatedAtDesc(UUID userId, GroupCommentStatus status);
+    List<GroupCommentEntity>
+    findByUserIdExternalAndStatusOrderByCreatedAtDesc(
+            UUID userId,
+            GroupCommentStatus status
+    );
 
-    List<GroupCommentEntity> findByGroupIdExternalAndStatusAndProgressPercentLessThanEqualOrderByCreatedAtAsc(UUID groupId, GroupCommentStatus status, Integer progressPercent);
-
+    List<GroupCommentEntity>
+    findByReadingCycle_IdExternalAndStatusOrderByCreatedAtAsc(
+            UUID cycleId,
+            GroupCommentStatus status
+    );
 }
