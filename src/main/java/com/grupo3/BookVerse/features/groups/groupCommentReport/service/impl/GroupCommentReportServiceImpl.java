@@ -11,7 +11,7 @@ import com.grupo3.BookVerse.features.groups.groupCommentReport.domain.GroupComme
 import com.grupo3.BookVerse.features.groups.groupCommentReport.dto.GroupCommentReportCreateRequestDto;
 import com.grupo3.BookVerse.features.groups.groupCommentReport.dto.GroupCommentReportModerationRequestDto;
 import com.grupo3.BookVerse.features.groups.groupCommentReport.dto.GroupCommentReportResponseDto;
-import com.grupo3.BookVerse.features.groups.groupCommentReport.mapper.GroupCommentReportMapper;
+import com.grupo3.BookVerse.features.groups.groupCommentReport.mappers.GroupCommentReportMapper;
 import com.grupo3.BookVerse.features.groups.groupCommentReport.repository.GroupCommentReportRepository;
 import com.grupo3.BookVerse.features.groups.groupCommentReport.service.GroupCommentReportService;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
