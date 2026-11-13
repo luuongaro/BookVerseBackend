@@ -2,6 +2,8 @@ package com.grupo3.BookVerse.features.users.service.impl;
 
 import com.grupo3.BookVerse.common.exception.DuplicateResourceException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
+import com.grupo3.BookVerse.auth.repository.PasswordResetTokenRepository;
+import com.grupo3.BookVerse.auth.domain.PasswordResetToken;
 import com.grupo3.BookVerse.features.roles.domain.RoleEntity;
 import com.grupo3.BookVerse.features.roles.repository.RoleRepository;
 import com.grupo3.BookVerse.features.subscriptions.domain.SubscriptionEntity;
@@ -51,12 +53,28 @@ class UserServiceImplTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private PasswordResetTokenRepository passwordResetTokens;
+
     @InjectMocks
     private UserServiceImpl userService;
 
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void inactiveAccountCannotBeReactivatedByRegistrationWithoutEmailProof() {
+        UserRequestDto request = buildUserRequest();
+        UserEntity inactive = UserEntity.builder().id(42L).email(request.email())
+                .username("original").passwordHash("original-hash").status(UserStatus.INACTIVE).build();
+        when(userRepository.findByEmailWithRoles(request.email().trim().toLowerCase())).thenReturn(Optional.of(inactive));
+        assertThrows(DuplicateResourceException.class, () -> userService.createUser(request));
+        assertEquals(UserStatus.INACTIVE, inactive.getStatus());
+        assertEquals("original-hash", inactive.getPasswordHash());
+        verify(userRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
     }
 
     @Test
@@ -369,12 +387,16 @@ class UserServiceImplTest {
         authenticateAs(adminUser);
 
         when(userRepository.findByIdExternal(idExternal)).thenReturn(Optional.of(targetUser));
+        when(userRepository.findForAccountDeactivation(2L)).thenReturn(Optional.of(targetUser));
+        var resetToken = new PasswordResetToken();
+        when(passwordResetTokens.findByUserId(2L)).thenReturn(Optional.of(resetToken));
 
         userService.deleteUser(idExternal);
 
         assertEquals(UserStatus.INACTIVE, targetUser.getStatus());
 
         verify(userRepository).save(targetUser);
+        verify(passwordResetTokens).delete(resetToken);
     }
 
     private UserRequestDto buildUserRequest() {

@@ -36,12 +36,16 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
                                                Pageable pageable);
 
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
-    @Query("select u from UserEntity u where lower(u.email) = lower(:email) and u.status = com.grupo3.BookVerse.features.users.domain.UserStatus.ACTIVE")
+    @Query("select u from UserEntity u where lower(u.email) = lower(:email) and u.status in (com.grupo3.BookVerse.features.users.domain.UserStatus.ACTIVE, com.grupo3.BookVerse.features.users.domain.UserStatus.INACTIVE)")
     Optional<UserEntity> findForPasswordRecoveryByEmail(@Param("email") String email);
 
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
-    @Query("select u from UserEntity u where u.id = :id and u.status = com.grupo3.BookVerse.features.users.domain.UserStatus.ACTIVE")
+    @Query("select u from UserEntity u where u.id = :id and u.status in (com.grupo3.BookVerse.features.users.domain.UserStatus.ACTIVE, com.grupo3.BookVerse.features.users.domain.UserStatus.INACTIVE)")
     Optional<UserEntity> findForPasswordRecoveryById(@Param("id") Long id);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserEntity u where u.id = :id")
+    Optional<UserEntity> findForAccountDeactivation(@Param("id") Long id);
 
     boolean existsByEmail(String email);
 
