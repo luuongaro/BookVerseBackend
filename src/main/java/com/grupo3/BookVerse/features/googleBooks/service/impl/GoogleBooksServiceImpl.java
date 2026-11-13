@@ -11,12 +11,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GoogleBooksServiceImpl implements GoogleBooksService {
 
     private final GoogleBooksClient googleBooksClient;
+    private static final Set<String> ALLOWED_LANGUAGES =
+            Set.of("es", "en");
 
     @Override
     public GoogleBooksApiResponseDto searchBooks(String query) {
@@ -25,10 +30,10 @@ public class GoogleBooksServiceImpl implements GoogleBooksService {
         String normalizedQuery = query.trim();
         logGoogleBooksSearch("general", normalizedQuery);
 
-        GoogleBooksApiResponseDto responseDto = googleBooksClient.searchBooks(normalizedQuery);
-        validateResponse(responseDto);
+        GoogleBooksApiResponseDto responseDto =
+                googleBooksClient.searchBooks(normalizedQuery);
 
-        return responseDto;
+        return filterAllowedLanguages(responseDto);
     }
 
     @Override
@@ -38,10 +43,10 @@ public class GoogleBooksServiceImpl implements GoogleBooksService {
         String normalizedTitle = "intitle:" + title.trim();
         logGoogleBooksSearch("title", normalizedTitle);
 
-        GoogleBooksApiResponseDto responseDto = googleBooksClient.searchBooks(normalizedTitle);
-        validateResponse(responseDto);
+        GoogleBooksApiResponseDto responseDto =
+                googleBooksClient.searchBooks(normalizedTitle);
 
-        return responseDto;
+        return filterAllowedLanguages(responseDto);
     }
 
     @Override
@@ -51,21 +56,38 @@ public class GoogleBooksServiceImpl implements GoogleBooksService {
         String normalizedAuthor = "inauthor:" + author.trim();
         logGoogleBooksSearch("author", normalizedAuthor);
 
-        GoogleBooksApiResponseDto responseDto = googleBooksClient.searchBooks(normalizedAuthor);
-        validateResponse(responseDto);
+        GoogleBooksApiResponseDto responseDto =
+                googleBooksClient.searchBooks(normalizedAuthor);
 
-        return responseDto;
+        return filterAllowedLanguages(responseDto);
     }
 
     @Override
     public GoogleBookVolumeDto getBookByGoogleId(String googleBookId) {
-        validateSearchValue(googleBookId, "Google Book ID");
+        validateSearchValue(
+                googleBookId,
+                "Google Book ID"
+        );
 
-        GoogleBookVolumeDto book = googleBooksClient.getBookByGoogleId(googleBookId);
+        GoogleBookVolumeDto book =
+                googleBooksClient.getBookByGoogleId(googleBookId);
 
         if (book == null || book.getVolumeInfo() == null) {
             throw new ResourceNotFoundException(
-                    "Book not found in Google Books with id: " + googleBookId
+                    "Book not found in Google Books with id: "
+                            + googleBookId
+            );
+        }
+
+        String language =
+                book.getVolumeInfo().getLanguage();
+
+        if (language == null
+                || !ALLOWED_LANGUAGES.contains(
+                language.trim().toLowerCase()
+        )) {
+            throw new BadRequestException(
+                    "Book language must be Spanish or English"
             );
         }
 
@@ -87,6 +109,37 @@ public class GoogleBooksServiceImpl implements GoogleBooksService {
     @Async
     public void logGoogleBooksSearch(String searchType, String value) {
         log.info("Asynchronous Google Books search [{}]: {}", searchType, value);
+    }
+
+    private GoogleBooksApiResponseDto filterAllowedLanguages(
+            GoogleBooksApiResponseDto responseDto
+    ) {
+        validateResponse(responseDto);
+
+        List<GoogleBookVolumeDto> filteredItems =
+                responseDto.getItems().stream()
+                        .filter(book ->
+                                book != null
+                                        && book.getVolumeInfo() != null
+                                        && book.getVolumeInfo().getLanguage() != null
+                                        && ALLOWED_LANGUAGES.contains(
+                                        book.getVolumeInfo()
+                                                .getLanguage()
+                                                .trim()
+                                                .toLowerCase()
+                                )
+                        )
+                        .toList();
+
+        if (filteredItems.isEmpty()) {
+            throw new ResourceNotFoundException(
+                    "No books found in Spanish or English for the given search criteria"
+            );
+        }
+
+        responseDto.setItems(filteredItems);
+
+        return responseDto;
     }
 }
 

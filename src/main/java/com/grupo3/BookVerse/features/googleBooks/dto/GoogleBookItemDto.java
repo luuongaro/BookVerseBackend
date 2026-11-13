@@ -14,6 +14,7 @@ public class GoogleBookItemDto {
     private List<String> categories;
     private String publisher;
     private String publishedDate;
+    private Integer pageCount;
     private String language;
     private GoogleBookImageLinksDto imageLinks;
     private List<GoogleBookIndustryIdentifierDto> industryIdentifiers;

@@ -14,7 +14,10 @@ import java.net.URI;
 public class GoogleBooksClient {
 
     private static final int MAX_RESULTS = 20;
-
+    private static final String SEARCH_FIELDS =
+            "items(id,volumeInfo(title,authors,description,categories,publisher," +
+                    "publishedDate,pageCount,language,imageLinks/thumbnail," +
+                    "industryIdentifiers))";
     private final GoogleBooksProperties googleBooksProperties;
     private final RestTemplate restTemplate;
 
@@ -24,8 +27,9 @@ public class GoogleBooksClient {
                 .fromUriString(googleBooksProperties.getUrl())
                 .queryParam("q", query)
                 .queryParam("printType", "books")
-                .queryParam("maxResults", 20)
+                .queryParam("maxResults", MAX_RESULTS)
                 .queryParam("orderBy", "relevance")
+                .queryParam("fields", SEARCH_FIELDS)
                 .queryParam("key", googleBooksProperties.getKey())
                 .build()
                 .encode()
