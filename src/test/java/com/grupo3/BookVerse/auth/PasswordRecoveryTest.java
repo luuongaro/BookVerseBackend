@@ -168,6 +168,35 @@ class PasswordRecoveryTest {
         assertTrue(encoder.matches(oldPassword, user().getPasswordHash()));
     }
 
+    @Test void anInactiveAccountIsReactivatedOnlyAfterUsingTheEmailedLink() {
+        var before = user();
+        var id = before.getId();
+        var externalId = before.getIdExternal();
+        var subscriptionId = before.getSubscription().getId();
+        tx.executeWithoutResult(status -> user().setStatus(UserStatus.INACTIVE));
+        String raw = issue();
+        assertEquals(UserStatus.INACTIVE, user().getStatus());
+        assertTrue(encoder.matches(oldPassword, user().getPasswordHash()));
+
+        recovery.resetPassword(raw, newPassword);
+        var restored = user();
+        assertEquals(UserStatus.ACTIVE, restored.getStatus());
+        assertEquals(id, restored.getId());
+        assertEquals(externalId, restored.getIdExternal());
+        assertEquals(subscriptionId, restored.getSubscription().getId());
+        assertEquals("Reader", restored.getProfileUsername());
+        assertEquals(1, restored.getCredentialsVersion());
+        assertTrue(encoder.matches(newPassword, restored.getPasswordHash()));
+        assertThrows(InvalidPasswordResetTokenException.class, () -> recovery.resetPassword(raw, newPassword));
+    }
+
+    @Test void bannedAccountsCannotRequestOrUseARecoveryLink() {
+        String raw = issue();
+        tx.executeWithoutResult(status -> user().setStatus(UserStatus.BANNED));
+        assertThrows(InvalidPasswordResetTokenException.class, () -> recovery.resetPassword(raw, newPassword));
+        assertEquals(UserStatus.BANNED, user().getStatus());
+    }
+
     @Test void rollbackNeverSendsAnUnusableLink() {
         tx.executeWithoutResult(status -> {
             recovery.requestReset(email);

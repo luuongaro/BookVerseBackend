@@ -3,6 +3,7 @@ package com.grupo3.BookVerse.features.users.service.impl;
 import com.grupo3.BookVerse.common.exception.BadRequestException;
 import com.grupo3.BookVerse.common.exception.DuplicateResourceException;
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
+import com.grupo3.BookVerse.auth.repository.PasswordResetTokenRepository;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberEntity;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberStatus;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.GroupMemberType;
@@ -50,6 +51,7 @@ public class UserServiceImpl implements UserService {
     private final GroupMemberRepository groupMemberRepository;
     private final ReadingGroupRepository readingGroupRepository;
     private final StoryRepository storyRepository;
+    private final PasswordResetTokenRepository passwordResetTokens;
 
     @Override
     @Transactional
@@ -95,11 +97,7 @@ public class UserServiceImpl implements UserService {
                 );
             }
 
-            return reactivateUser(
-                    existingUser,
-                    normalizedUsername,
-                    dto.password()
-            );
+            throw new DuplicateResourceException("Email is already in use");
         }
 
         if (userRepository.existsByUsernameIgnoreCase(
@@ -140,44 +138,6 @@ public class UserServiceImpl implements UserService {
                 userRepository.save(user);
 
         return userMapper.toResponseDto(saved);
-    }
-
-    private UserResponseDto reactivateUser(
-            UserEntity existingUser,
-            String requestedUsername,
-            String newPassword
-    ) {
-        boolean usernameBelongsToAnotherUser =
-                userRepository
-                        .existsByUsernameIgnoreCaseAndIdNot(
-                                requestedUsername,
-                                existingUser.getId()
-                        );
-
-        if (usernameBelongsToAnotherUser) {
-            throw new DuplicateResourceException(
-                    "Username is already in use"
-            );
-        }
-
-        existingUser.setUsername(requestedUsername);
-
-        existingUser.setPasswordHash(
-                passwordEncoder.encode(newPassword)
-        );
-
-        existingUser.setCredentialsVersion(
-                existingUser.getCredentialsVersion() + 1
-        );
-
-        existingUser.setStatus(UserStatus.ACTIVE);
-
-        UserEntity reactivatedUser =
-                userRepository.save(existingUser);
-
-        return userMapper.toResponseDto(
-                reactivatedUser
-        );
     }
 
     @Override
@@ -305,6 +265,9 @@ public class UserServiceImpl implements UserService {
                 authenticatedUser
         );
 
+        targetUser = userRepository.findForAccountDeactivation(targetUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        passwordResetTokens.findByUserId(targetUser.getId()).ifPresent(passwordResetTokens::delete);
         targetUser.setStatus(UserStatus.INACTIVE);
         userRepository.save(targetUser);
     }
@@ -445,6 +408,9 @@ public class UserServiceImpl implements UserService {
                 dto.storyAction()
         );
 
+        authenticatedUser = userRepository.findForAccountDeactivation(authenticatedUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        passwordResetTokens.findByUserId(authenticatedUser.getId()).ifPresent(passwordResetTokens::delete);
         authenticatedUser.setStatus(UserStatus.INACTIVE);
         userRepository.save(authenticatedUser);
     }

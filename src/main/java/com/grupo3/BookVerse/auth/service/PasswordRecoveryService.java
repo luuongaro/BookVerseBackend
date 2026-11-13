@@ -6,6 +6,7 @@ import com.grupo3.BookVerse.auth.events.PasswordResetRequested;
 import com.grupo3.BookVerse.auth.repository.PasswordResetTokenRepository;
 import com.grupo3.BookVerse.common.exception.InvalidPasswordResetTokenException;
 import com.grupo3.BookVerse.features.users.repository.UserRepository;
+import com.grupo3.BookVerse.features.users.domain.UserStatus;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -93,6 +94,7 @@ public class PasswordRecoveryService {
 
         user.setPasswordHash(encoder.encode(password));
         user.setCredentialsVersion(user.getCredentialsVersion() + 1);
+        if (user.getStatus() == UserStatus.INACTIVE) user.setStatus(UserStatus.ACTIVE);
         users.save(user);
         tokens.delete(token);
         events.publishEvent(new PasswordChanged(user.getEmail()));
