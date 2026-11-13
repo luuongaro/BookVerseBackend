@@ -34,6 +34,7 @@ class GoogleBooksServiceImplTest {
                 new GoogleBookItemDto();
 
         item.setTitle("Harry Potter");
+        item.setLanguage("en");
 
         GoogleBookVolumeDto volume =
                 new GoogleBookVolumeDto();
@@ -83,7 +84,12 @@ class GoogleBooksServiceImplTest {
         GoogleBooksApiResponseDto response =
                 new GoogleBooksApiResponseDto();
 
-        response.setItems(List.of(new GoogleBookVolumeDto()));
+        GoogleBookItemDto info = new GoogleBookItemDto();
+        info.setTitle("Book");
+        info.setLanguage("en");
+        GoogleBookVolumeDto volume = new GoogleBookVolumeDto();
+        volume.setVolumeInfo(info);
+        response.setItems(List.of(volume));
 
         when(googleBooksClient
                 .searchBooks("intitle:Harry Potter"))
@@ -106,7 +112,12 @@ class GoogleBooksServiceImplTest {
         GoogleBooksApiResponseDto response =
                 new GoogleBooksApiResponseDto();
 
-        response.setItems(List.of(new GoogleBookVolumeDto()));
+        GoogleBookItemDto info = new GoogleBookItemDto();
+        info.setTitle("Book");
+        info.setLanguage("en");
+        GoogleBookVolumeDto volume = new GoogleBookVolumeDto();
+        volume.setVolumeInfo(info);
+        response.setItems(List.of(volume));
 
         when(googleBooksClient
                 .searchBooks("inauthor:J K Rowling"))
@@ -132,6 +143,7 @@ class GoogleBooksServiceImplTest {
                 new GoogleBookItemDto();
 
         item.setTitle("Spring Boot");
+        item.setLanguage("en");
 
         GoogleBookVolumeDto book =
                 new GoogleBookVolumeDto();
