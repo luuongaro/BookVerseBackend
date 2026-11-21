@@ -98,4 +98,13 @@ public class GroupCommentReportController {
                 )
         );
     }
+
+    @PatchMapping("/{reportId}/restore")
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    public ResponseEntity<Void> restoreComment(
+            @PathVariable UUID reportId
+    ) {
+        reportService.restoreComment(reportId);
+        return ResponseEntity.noContent().build();
+    }
 }

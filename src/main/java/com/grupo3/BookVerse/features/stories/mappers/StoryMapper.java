@@ -19,6 +19,7 @@ public interface StoryMapper {
     @Mapping(target = "author", ignore = true)
     @Mapping(target = "hidden", ignore = true)
     @Mapping(target = "deleted", ignore = true)
+    @Mapping(target = "moderationRemoved", ignore = true)
     StoryEntity toEntity(StoryRequestDto dto);
 
     @Mapping(target = "authorId", source = "author.idExternal")

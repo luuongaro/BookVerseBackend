@@ -23,6 +23,11 @@ public record ReviewReportResponseDto(
         String status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        LocalDateTime resolvedAt
+        LocalDateTime resolvedAt,
+        boolean reviewTakenDown,
+        String moderatorUsername,
+        UUID restoredByUserId,
+        String restoredByUsername,
+        LocalDateTime restoredAt
 
 ) {}
