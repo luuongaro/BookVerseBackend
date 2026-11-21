@@ -71,4 +71,13 @@ public class StoryReportController {
                 storyReportService.rejectReport(reportId, dto)
         );
     }
+
+    @PatchMapping("/{reportId}/restore")
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    public ResponseEntity<Void> restoreStory(
+            @PathVariable UUID reportId
+    ) {
+        storyReportService.restoreStory(reportId);
+        return ResponseEntity.noContent().build();
+    }
 }

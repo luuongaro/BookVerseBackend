@@ -330,6 +330,36 @@ class ReviewReportServiceImplTest {
         assertSame(moderator, report.getModeratorUser());
     }
 
+    @Test
+    void restoreReview_shouldRecordRestorationOnAllApprovedReports() {
+        UserEntity restoredBy = authenticateModerator();
+        ReviewEntity review = new ReviewEntity();
+        review.setId(10L);
+        review.setTakedownStatus(ReviewTakedownStatus.TAKEN_DOWN);
+        ReviewReportEntity report = new ReviewReportEntity();
+        report.setReview(review);
+        report.setStatus(ReviewReportStatus.APPROVED);
+        ReviewReportEntity otherReport = new ReviewReportEntity();
+        otherReport.setReview(review);
+        otherReport.setStatus(ReviewReportStatus.APPROVED);
+        List<ReviewReportEntity> approvedReports = List.of(report, otherReport);
+        when(reviewReportRepository.findByIdExternal(reportId)).thenReturn(Optional.of(report));
+        when(reviewReportRepository.findAllByReviewIdAndStatus(review.getId(), ReviewReportStatus.APPROVED))
+                .thenReturn(approvedReports);
+
+        reviewReportService.restoreReview(reportId);
+
+        assertEquals(ReviewTakedownStatus.ACTIVE, review.getTakedownStatus());
+        assertNotNull(report.getRestoredAt());
+        for (ReviewReportEntity approvedReport : approvedReports) {
+            assertSame(restoredBy, approvedReport.getRestoredByUser());
+            assertEquals(report.getRestoredAt(), approvedReport.getRestoredAt());
+            assertEquals(ReviewReportStatus.APPROVED, approvedReport.getStatus());
+        }
+        verify(reviewRepository).save(review);
+        verify(reviewReportRepository).saveAll(approvedReports);
+    }
+
     private UserEntity authenticateModerator() {
         UserEntity moderator = new UserEntity();
         moderator.setId(99L);

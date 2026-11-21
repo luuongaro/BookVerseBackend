@@ -39,6 +39,13 @@ public interface ReviewReportMapper {
     @Mapping(source = "reporterUser.idExternal", target = "reporterUserId")
     @Mapping(source = "reporterUser.profileUsername", target = "reporterUsername")
     @Mapping(source = "moderatorUser.idExternal", target = "moderatorUserId")
+    @Mapping(
+            target = "reviewTakenDown",
+            expression = "java(report.getReview() != null && report.getReview().getTakedownStatus() == com.grupo3.BookVerse.features.reviews.domain.ReviewTakedownStatus.TAKEN_DOWN)"
+    )
+    @Mapping(source = "moderatorUser.profileUsername", target = "moderatorUsername")
+    @Mapping(source = "restoredByUser.idExternal", target = "restoredByUserId")
+    @Mapping(source = "restoredByUser.profileUsername", target = "restoredByUsername")
     ReviewReportResponseDto toResponseDto(ReviewReportEntity report);
 
     List<ReviewReportResponseDto> toResponseListDto(List<ReviewReportEntity> reports);

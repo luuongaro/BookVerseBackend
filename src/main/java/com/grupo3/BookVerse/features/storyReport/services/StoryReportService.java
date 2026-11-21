@@ -26,4 +26,6 @@ public interface StoryReportService {
             UUID reportId,
             StoryReportModerationRequestDto dto
     );
+
+    void restoreStory(UUID reportId);
 }

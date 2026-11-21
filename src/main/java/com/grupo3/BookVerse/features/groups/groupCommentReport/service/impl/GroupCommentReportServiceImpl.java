@@ -194,6 +194,52 @@ public class GroupCommentReportServiceImpl
         );
     }
 
+    @Override
+    @Transactional
+    public void restoreComment(UUID reportId) {
+        GroupCommentReportEntity report =
+                findReportByIdExternal(reportId);
+
+        if (report.getStatus() != GroupCommentReportStatus.APPROVED) {
+            throw new BadRequestException(
+                    "Only an approved group comment report can restore its comment"
+            );
+        }
+
+        GroupCommentEntity comment = report.getComment();
+
+        if (comment == null) {
+            throw new ResourceNotFoundException(
+                    "The comment associated with this report was not found"
+            );
+        }
+
+        if (comment.getStatus() != GroupCommentStatus.MODERATED) {
+            throw new BadRequestException(
+                    "The comment is not currently removed by moderation"
+            );
+        }
+
+        comment.setStatus(GroupCommentStatus.ACTIVE);
+        commentRepository.save(comment);
+
+        UserEntity restoredBy = getAuthenticatedUser();
+        LocalDateTime restoredAt = LocalDateTime.now();
+
+        List<GroupCommentReportEntity> approvedReports =
+                reportRepository.findAllByCommentIdAndStatus(
+                        comment.getId(),
+                        GroupCommentReportStatus.APPROVED
+                );
+
+        for (GroupCommentReportEntity approvedReport : approvedReports) {
+            approvedReport.setRestoredByUser(restoredBy);
+            approvedReport.setRestoredAt(restoredAt);
+        }
+
+        reportRepository.saveAll(approvedReports);
+    }
+
     private void resolvePendingReportsForComment(
             Long commentId,
             UserEntity moderator,

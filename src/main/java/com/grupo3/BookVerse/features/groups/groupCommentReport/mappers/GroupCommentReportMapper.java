@@ -77,6 +77,22 @@ public interface GroupCommentReportMapper {
             source = "moderatorUser.idExternal",
             target = "moderatorUserId"
     )
+    @Mapping(
+            source = "comment.status",
+            target = "commentStatus"
+    )
+    @Mapping(
+            source = "moderatorUser.profileUsername",
+            target = "moderatorUsername"
+    )
+    @Mapping(
+            source = "restoredByUser.idExternal",
+            target = "restoredByUserId"
+    )
+    @Mapping(
+            source = "restoredByUser.profileUsername",
+            target = "restoredByUsername"
+    )
     GroupCommentReportResponseDto toResponseDto(
             GroupCommentReportEntity report
     );

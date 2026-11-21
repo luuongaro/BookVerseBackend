@@ -100,6 +100,14 @@ public class StoryReportServiceImpl implements StoryReportService {
         UserEntity moderator = getAuthenticatedUser();
 
         StoryEntity story = report.getStory();
+
+        if (story.isDeleted()) {
+            throw new BadRequestException(
+                    "No se puede aprobar el reporte: la historia ya fue eliminada"
+            );
+        }
+
+        story.setModerationRemoved(true);
         story.setDeleted(true);
         storyRepository.save(story);
 
@@ -129,6 +137,52 @@ public class StoryReportServiceImpl implements StoryReportService {
         );
 
         return storyReportMapper.toResponseDto(report);
+    }
+
+    @Override
+    @Transactional
+    public void restoreStory(UUID reportId) {
+        StoryReportEntity report = findReportByIdExternal(reportId);
+
+        if (report.getStatus() != StoryReportStatus.APPROVED) {
+            throw new BadRequestException(
+                    "Only an approved story report can restore its story"
+            );
+        }
+
+        StoryEntity story = report.getStory();
+
+        if (story == null) {
+            throw new ResourceNotFoundException(
+                    "The story associated with this report was not found"
+            );
+        }
+
+        if (!story.isDeleted() || !story.isModerationRemoved()) {
+            throw new BadRequestException(
+                    "The story is not currently removed by moderation"
+            );
+        }
+
+        story.setDeleted(false);
+        story.setModerationRemoved(false);
+        storyRepository.save(story);
+
+        UserEntity restoredBy = getAuthenticatedUser();
+        LocalDateTime restoredAt = LocalDateTime.now();
+
+        List<StoryReportEntity> approvedReports =
+                storyReportRepository.findAllByStory_IdAndStatus(
+                        story.getId(),
+                        StoryReportStatus.APPROVED
+                );
+
+        for (StoryReportEntity approvedReport : approvedReports) {
+            approvedReport.setRestoredByUser(restoredBy);
+            approvedReport.setRestoredAt(restoredAt);
+        }
+
+        storyReportRepository.saveAll(approvedReports);
     }
 
     private void resolvePendingReportsForStory(

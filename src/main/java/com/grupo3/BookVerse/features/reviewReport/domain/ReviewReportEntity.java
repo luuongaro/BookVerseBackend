@@ -38,6 +38,10 @@ public class ReviewReportEntity {
     @JoinColumn(name = "moderator_user_id")
     private UserEntity moderatorUser;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "restored_by_user_id")
+    private UserEntity restoredByUser;
+
     @Column(nullable = false, length = 1000)
     private String reason;
 
@@ -61,6 +65,9 @@ public class ReviewReportEntity {
 
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
+
+    @Column(name = "restored_at")
+    private LocalDateTime restoredAt;
 
     @PrePersist
     protected void onCreate() {

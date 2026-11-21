@@ -145,6 +145,22 @@ public class ReviewReportServiceImpl implements ReviewReportService {
         review.setTakedownReason(null);
 
         reviewRepository.save(review);
+
+        UserEntity restoredBy = getAuthenticatedUser();
+        LocalDateTime restoredAt = LocalDateTime.now();
+
+        List<ReviewReportEntity> approvedReports =
+                reviewReportRepository.findAllByReviewIdAndStatus(
+                        review.getId(),
+                        ReviewReportStatus.APPROVED
+                );
+
+        for (ReviewReportEntity approvedReport : approvedReports) {
+            approvedReport.setRestoredByUser(restoredBy);
+            approvedReport.setRestoredAt(restoredAt);
+        }
+
+        reviewReportRepository.saveAll(approvedReports);
     }
 
     private void resolvePendingReportsForReview(

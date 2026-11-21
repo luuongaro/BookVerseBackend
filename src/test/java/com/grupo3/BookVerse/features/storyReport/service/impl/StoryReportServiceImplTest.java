@@ -18,6 +18,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -252,7 +255,38 @@ class StoryReportServiceImplTest {
         assertEquals(response, result);
         assertEquals(StoryReportStatus.APPROVED, report.getStatus());
         assertTrue(story.isDeleted());
+        assertTrue(story.isModerationRemoved());
         assertSame(moderator, report.getModeratorUser());
+        verify(storyRepository).save(story);
+    }
+
+    @Test
+    void approveReport_shouldThrow_whenStoryWasAlreadyDeleted() {
+        authenticateModerator();
+
+        StoryEntity story = new StoryEntity();
+        story.setDeleted(true);
+
+        StoryReportEntity report = new StoryReportEntity();
+        report.setStatus(StoryReportStatus.PENDING);
+        report.setStory(story);
+
+        StoryReportModerationRequestDto dto = new StoryReportModerationRequestDto(
+                "Inappropriate content"
+        );
+
+        when(storyReportRepository.findByIdExternal(reportId)).thenReturn(Optional.of(report));
+
+        BadRequestException error = assertThrows(
+                BadRequestException.class,
+                () -> storyReportService.approveReport(reportId, dto)
+        );
+
+        assertEquals("No se puede aprobar el reporte: la historia ya fue eliminada", error.getMessage());
+        assertFalse(story.isModerationRemoved());
+        assertEquals(StoryReportStatus.PENDING, report.getStatus());
+        verifyNoInteractions(storyRepository);
+        verify(storyReportRepository, never()).saveAll(any());
     }
 
     @Test
@@ -282,6 +316,83 @@ class StoryReportServiceImplTest {
         assertEquals(response, result);
         assertEquals(StoryReportStatus.REJECTED, report.getStatus());
         assertSame(moderator, report.getModeratorUser());
+    }
+
+    @Test
+    void restoreStory_shouldClearRemovalFlagsAndRecordRestorationOnAllApprovedReports() {
+        UserEntity restoredBy = authenticateModerator();
+        StoryEntity story = StoryEntity.builder()
+                .id(10L)
+                .deleted(true)
+                .moderationRemoved(true)
+                .build();
+        StoryReportEntity report = new StoryReportEntity();
+        report.setStatus(StoryReportStatus.APPROVED);
+        report.setStory(story);
+        StoryReportEntity otherReport = new StoryReportEntity();
+        otherReport.setStatus(StoryReportStatus.APPROVED);
+        otherReport.setStory(story);
+        List<StoryReportEntity> approvedReports = List.of(report, otherReport);
+        when(storyReportRepository.findByIdExternal(reportId)).thenReturn(Optional.of(report));
+        when(storyReportRepository.findAllByStory_IdAndStatus(story.getId(), StoryReportStatus.APPROVED))
+                .thenReturn(approvedReports);
+
+        storyReportService.restoreStory(reportId);
+
+        assertFalse(story.isDeleted());
+        assertFalse(story.isModerationRemoved());
+        assertNotNull(report.getRestoredAt());
+        for (StoryReportEntity approvedReport : approvedReports) {
+            assertSame(restoredBy, approvedReport.getRestoredByUser());
+            assertEquals(report.getRestoredAt(), approvedReport.getRestoredAt());
+            assertEquals(StoryReportStatus.APPROVED, approvedReport.getStatus());
+        }
+        verify(storyRepository).save(story);
+        verify(storyReportRepository).saveAll(approvedReports);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = StoryReportStatus.class, mode = EnumSource.Mode.EXCLUDE, names = "APPROVED")
+    void restoreStory_shouldRejectReportsThatAreNotApproved(StoryReportStatus status) {
+        StoryReportEntity report = new StoryReportEntity();
+        report.setStatus(status);
+        when(storyReportRepository.findByIdExternal(reportId)).thenReturn(Optional.of(report));
+
+        assertThrows(BadRequestException.class, () -> storyReportService.restoreStory(reportId));
+
+        verifyNoInteractions(storyRepository);
+    }
+
+    @Test
+    void restoreStory_shouldFailWhenTheAssociatedStoryIsMissing() {
+        StoryReportEntity report = new StoryReportEntity();
+        report.setStatus(StoryReportStatus.APPROVED);
+        when(storyReportRepository.findByIdExternal(reportId)).thenReturn(Optional.of(report));
+
+        assertThrows(ResourceNotFoundException.class, () -> storyReportService.restoreStory(reportId));
+
+        verifyNoInteractions(storyRepository);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"true, false", "false, true", "false, false"})
+    void restoreStory_shouldRejectStoriesThatAreNotCurrentlyRemovedByModeration(
+            boolean deleted, boolean moderationRemoved
+    ) {
+        StoryEntity story = StoryEntity.builder()
+                .deleted(deleted)
+                .moderationRemoved(moderationRemoved)
+                .build();
+        StoryReportEntity report = new StoryReportEntity();
+        report.setStatus(StoryReportStatus.APPROVED);
+        report.setStory(story);
+        when(storyReportRepository.findByIdExternal(reportId)).thenReturn(Optional.of(report));
+
+        assertThrows(BadRequestException.class, () -> storyReportService.restoreStory(reportId));
+
+        assertEquals(deleted, story.isDeleted());
+        assertEquals(moderationRemoved, story.isModerationRemoved());
+        verifyNoInteractions(storyRepository);
     }
 
     private UserEntity authenticateModerator() {

@@ -34,6 +34,13 @@ public interface StoryReportMapper {
     @Mapping(source = "reporterUser.idExternal", target = "reporterUserId")
     @Mapping(source = "reporterUser.profileUsername", target = "reporterUsername")
     @Mapping(source = "moderatorUser.idExternal", target = "moderatorUserId")
+    @Mapping(
+            source = "story.moderationRemoved",
+            target = "storyModerationRemoved"
+    )
+    @Mapping(source = "moderatorUser.profileUsername", target = "moderatorUsername")
+    @Mapping(source = "restoredByUser.idExternal", target = "restoredByUserId")
+    @Mapping(source = "restoredByUser.profileUsername", target = "restoredByUsername")
     StoryReportResponseDto toResponseDto(StoryReportEntity report);
 
     List<StoryReportResponseDto> toResponseListDto(

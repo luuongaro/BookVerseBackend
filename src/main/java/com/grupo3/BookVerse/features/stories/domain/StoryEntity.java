@@ -45,6 +45,9 @@ public class StoryEntity {
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
 
+    @Column(name = "moderation_removed", nullable = false)
+    private boolean moderationRemoved;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

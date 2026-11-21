@@ -18,6 +18,11 @@ public record StoryReportResponseDto(
         String status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        LocalDateTime resolvedAt
+        LocalDateTime resolvedAt,
+        boolean storyModerationRemoved,
+        String moderatorUsername,
+        UUID restoredByUserId,
+        String restoredByUsername,
+        LocalDateTime restoredAt
 
 ) {}

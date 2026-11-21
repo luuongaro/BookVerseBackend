@@ -1,5 +1,6 @@
 package com.grupo3.BookVerse.features.groups.groupCommentReport.dto;
 
+import com.grupo3.BookVerse.features.groups.groupComment.domain.GroupCommentStatus;
 import com.grupo3.BookVerse.features.groups.groupCommentReport.domain.GroupCommentReportStatus;
 import com.grupo3.BookVerse.features.status.domain.ProgressType;
 
@@ -44,7 +45,17 @@ public record GroupCommentReportResponseDto(
 
         LocalDateTime updatedAt,
 
-        LocalDateTime resolvedAt
+        LocalDateTime resolvedAt,
+
+        GroupCommentStatus commentStatus,
+
+        String moderatorUsername,
+
+        UUID restoredByUserId,
+
+        String restoredByUsername,
+
+        LocalDateTime restoredAt
 
 ) {
 }

@@ -30,4 +30,6 @@ public interface GroupCommentReportService {
             UUID reportId,
             GroupCommentReportModerationRequestDto dto
     );
+
+    void restoreComment(UUID reportId);
 }
