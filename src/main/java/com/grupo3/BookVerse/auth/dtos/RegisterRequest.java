@@ -1,9 +1,6 @@
 package com.grupo3.BookVerse.auth.dtos;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 public record RegisterRequest(
 
@@ -21,7 +18,11 @@ public record RegisterRequest(
                 regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&._-]).+$",
                 message = "Password must contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character (@$!%*?&._-)."
         )
-        String password
+        String password,
+
+        @NotNull(message = "Age confirmation is required")
+        @AssertTrue(message = "You must confirm that you are 18 years old or older")
+        Boolean adultConfirmed
 
 ) {
 }
