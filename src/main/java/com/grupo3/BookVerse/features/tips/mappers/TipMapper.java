@@ -22,7 +22,10 @@ public interface TipMapper {
 
     @Mapping(target = "senderUserId", source = "sender.idExternal")
     @Mapping(target = "receiverUserId", source = "receiver.idExternal")
-    @Mapping(target = "storyId", source = "story.idExternal")
+    @Mapping(
+            target = "storyId",
+            expression = "java(tipEntity.getStory() != null ? tipEntity.getStory().getIdExternal() : null)"
+    )
     @Mapping(target = "paymentId", source = "payment.idExternal")
     @Mapping(target = "paymentStatus", source = "payment.status")
     TipResponseDto toResponseDto(TipEntity tipEntity);

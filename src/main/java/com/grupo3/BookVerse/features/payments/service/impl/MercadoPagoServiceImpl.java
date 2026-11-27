@@ -7,6 +7,7 @@ import com.grupo3.BookVerse.features.payments.service.MercadoPagoService;
 import com.mercadopago.client.payment.PaymentClient;
 import com.mercadopago.client.preference.PreferenceClient;
 import com.mercadopago.client.preference.PreferenceItemRequest;
+import com.mercadopago.client.preference.PreferencePayerRequest;
 import com.mercadopago.client.preference.PreferenceRequest;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
@@ -25,7 +26,8 @@ public class MercadoPagoServiceImpl implements MercadoPagoService {
     public MercadoPagoCheckoutResponseDto createCheckout(
             String title,
             BigDecimal amount,
-            UUID paymentId
+            UUID paymentId,
+            String payerEmail
     ) {
         try {
             PreferenceItemRequest item = PreferenceItemRequest.builder()
@@ -35,8 +37,14 @@ public class MercadoPagoServiceImpl implements MercadoPagoService {
                     .unitPrice(amount)
                     .build();
 
+            PreferencePayerRequest payer =
+                    PreferencePayerRequest.builder()
+                            .email(payerEmail)
+                            .build();
+
             PreferenceRequest request = PreferenceRequest.builder()
                     .items(List.of(item))
+                    .payer(payer)
                     .externalReference(paymentId.toString())
                     .build();
 

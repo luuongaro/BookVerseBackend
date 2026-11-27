@@ -54,8 +54,8 @@ public class TipEntity {
     @JoinColumn(name = "receiver_user_id", nullable = false)
     private UserEntity receiver;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "story_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "story_id")
     private StoryEntity story;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)

@@ -18,6 +18,8 @@ import com.grupo3.BookVerse.features.tips.mappers.TipMapper;
 import com.grupo3.BookVerse.features.tips.repository.TipRepository;
 import com.grupo3.BookVerse.features.tips.service.TipService;
 import com.grupo3.BookVerse.features.users.domain.UserEntity;
+import com.grupo3.BookVerse.features.users.domain.UserStatus;
+import com.grupo3.BookVerse.features.users.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -37,19 +39,48 @@ public class TipServiceImpl implements TipService {
     private final StoryRepository storyRepository;
     private final PaymentRepository paymentRepository;
     private final MercadoPagoService mercadoPagoService;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
     public TipCheckoutResponseDto createTip(TipRequestDto tipRequestDto) {
+
         UserEntity sender = getAuthenticatedUser();
 
-        StoryEntity story = findActiveStoryByIdExternal(
-                tipRequestDto.getStoryId()
-        );
+        validateTipTarget(tipRequestDto);
 
-        UserEntity receiver = story.getAuthor();
+        StoryEntity story = null;
+        UserEntity receiver;
+        String checkoutTitle;
 
-        validateReceiverExists(receiver);
+        if (tipRequestDto.getStoryId() != null) {
+
+            story = findActiveStoryByIdExternal(
+                    tipRequestDto.getStoryId()
+            );
+
+            receiver = story.getAuthor();
+
+            validateReceiverExists(receiver);
+
+            checkoutTitle = "Tip - " + story.getTitle();
+
+        } else {
+
+            receiver = userRepository
+                    .findByIdExternalAndStatus(
+                            tipRequestDto.getReceiverUserId(),
+                            UserStatus.ACTIVE
+                    )
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException(
+                                    "Tip receiver not found"
+                            )
+                    );
+
+            checkoutTitle = "Tip - BookVerse user";
+        }
+
         validateSenderIsNotReceiver(sender, receiver);
 
         PaymentEntity payment = PaymentEntity.builder()
@@ -75,9 +106,10 @@ public class TipServiceImpl implements TipService {
 
         MercadoPagoCheckoutResponseDto checkout =
                 mercadoPagoService.createCheckout(
-                        "Tip - " + story.getTitle(),
+                        checkoutTitle,
                         savedPayment.getAmount(),
-                        savedPayment.getIdExternal()
+                        savedPayment.getIdExternal(),
+                        sender.getEmail()
                 );
 
         return TipCheckoutResponseDto.builder()
@@ -85,6 +117,7 @@ public class TipServiceImpl implements TipService {
                 .checkout(checkout)
                 .build();
     }
+
 
 
     @Override
@@ -151,6 +184,21 @@ public class TipServiceImpl implements TipService {
         tipRepository.delete(tip);
     }
 
+    private void validateTipTarget(TipRequestDto tipRequestDto) {
+
+        boolean hasStory =
+                tipRequestDto.getStoryId() != null;
+
+        boolean hasReceiver =
+                tipRequestDto.getReceiverUserId() != null;
+
+        if (hasStory == hasReceiver) {
+            throw new BadRequestException(
+                    "A tip must target either a story or a user, but not both"
+            );
+        }
+    }
+
     private TipEntity findTipByIdExternal(UUID idExternal) {
         return tipRepository.findByIdExternal(idExternal)
                 .orElseThrow(() ->
@@ -187,7 +235,7 @@ public class TipServiceImpl implements TipService {
     ) {
         if (sender.getId().equals(receiver.getId())) {
             throw new BadRequestException(
-                    "Users cannot send tips to their own stories"
+                    "Users cannot send tips to themselves"
             );
         }
     }

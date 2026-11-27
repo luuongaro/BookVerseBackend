@@ -20,4 +20,5 @@ public interface TipService {
     List<TipResponseDto> getTipsByReceiverId(UUID receiverId);
 
     void deleteTip(UUID idExternal);
+
 }
