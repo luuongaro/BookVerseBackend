@@ -11,7 +11,8 @@ public interface MercadoPagoService {
     MercadoPagoCheckoutResponseDto createCheckout(
             String title,
             BigDecimal amount,
-            UUID paymentId
+            UUID paymentId,
+            String payerEmail
     );
 
     MercadoPagoPaymentDto getPayment(String providerPaymentId);

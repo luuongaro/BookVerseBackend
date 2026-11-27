@@ -14,8 +14,9 @@ import java.util.UUID;
 @Builder
 public class TipRequestDto {
 
-    @NotNull(message = "Story id is required")
     private UUID storyId;
+
+    private UUID receiverUserId;
 
     @NotNull(message = "Tip amount is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Tip amount must be greater than 0")
