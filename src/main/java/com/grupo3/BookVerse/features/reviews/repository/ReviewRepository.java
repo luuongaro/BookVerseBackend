@@ -78,4 +78,9 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, Long> {
             Long storyId,
             ReviewTakedownStatus takedownStatus
     );
+
+    List<ReviewEntity> findByReviewerIdExternalAndDeletedFalseAndTakedownStatusOrderByCreatedAtDesc(
+            UUID reviewerId,
+            ReviewTakedownStatus takedownStatus
+    );
 }

@@ -18,6 +18,8 @@ public interface ReviewService {
 
     List<ReviewResponseDto> getReviewsByStoryId(UUID storyId);
 
+    List<ReviewResponseDto> getReviewsByReviewerId(UUID reviewerId);
+
     ReviewResponseDto createReview(ReviewCreateRequestDto reviewCreateRequestDto);
 
     ReviewResponseDto updateReview(UUID reviewId, ReviewUpdateRequestDto reviewUpdateRequestDto);
@@ -27,4 +29,5 @@ public interface ReviewService {
     ReviewRatingSummaryDto getBookRatingSummary(UUID bookId);
 
     ReviewRatingSummaryDto getStoryRatingSummary(UUID storyId);
+
 }
