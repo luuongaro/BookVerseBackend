@@ -49,6 +49,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         return subscriptionMapper.toResponseDtoList(subscriptionRepository.findAll());
     }
 
+
     @Override
     @Transactional(readOnly = true)
     public SubscriptionResponseDto getSubscriptionByIdExternal(UUID idExternal) {
@@ -156,15 +157,40 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         UserEntity authenticatedUser = getAuthenticatedUser();
 
-        if (
-                authenticatedUser.getSubscription() != null
-                        && authenticatedUser.getSubscription().getType()
-                        == SubscriptionType.FREE
-        ) {
+        if (authenticatedUser.getSubscription() != null
+                && authenticatedUser.getSubscription().getType()
+                == SubscriptionType.FREE) {
             throw new BadRequestException(
                     "User already has a FREE subscription"
             );
         }
+
+        UserSubscriptionEntity activeUserSubscription =
+                userSubscriptionRepository
+                        .findByUser_IdExternalAndStatus(
+                                authenticatedUser.getIdExternal(),
+                                UserSubscriptionStatus.ACTIVE
+                        )
+                        .orElseThrow(
+                                () -> new ResourceNotFoundException(
+                                        "Active premium subscription not found"
+                                )
+                        );
+
+        if (activeUserSubscription.getProviderSubscriptionId() == null
+                || activeUserSubscription.getProviderSubscriptionId().isBlank()) {
+            throw new BadRequestException(
+                    "User subscription does not have a Mercado Pago subscription id"
+            );
+        }
+
+        mercadoPagoSubscriptionService.cancelSubscription(
+                activeUserSubscription.getProviderSubscriptionId()
+        );
+
+        activeUserSubscription.setStatus(
+                UserSubscriptionStatus.CANCELLED
+        );
 
         SubscriptionEntity freeSubscription =
                 subscriptionRepository
@@ -183,6 +209,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         authenticatedUser.setSubscription(freeSubscription);
 
+        userSubscriptionRepository.save(activeUserSubscription);
         userRepository.save(authenticatedUser);
 
         return subscriptionMapper.toResponseDto(

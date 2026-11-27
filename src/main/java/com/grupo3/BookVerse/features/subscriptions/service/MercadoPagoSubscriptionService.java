@@ -16,4 +16,6 @@ public interface MercadoPagoSubscriptionService {
     MercadoPagoSubscriptionResponseDto getSubscription(
             String providerSubscriptionId
     );
+
+    void cancelSubscription(String providerSubscriptionId);
 }
