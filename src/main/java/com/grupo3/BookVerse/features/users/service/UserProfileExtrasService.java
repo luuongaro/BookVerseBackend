@@ -1,7 +1,12 @@
 package com.grupo3.BookVerse.features.users.service;
 
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
+import com.grupo3.BookVerse.features.books.dto.BookResponseDto;
+import com.grupo3.BookVerse.features.books.mapper.BookMapper;
+import com.grupo3.BookVerse.features.books.repository.BookRepository;
 import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
+import com.grupo3.BookVerse.features.reviews.dto.ReviewResponseDto;
+import com.grupo3.BookVerse.features.reviews.services.ReviewService;
 import com.grupo3.BookVerse.features.status.domain.ReadingStatusEnum;
 import com.grupo3.BookVerse.features.status.repository.ReadingStatusRepository;
 import com.grupo3.BookVerse.features.stories.repository.StoryRepository;
@@ -28,6 +33,10 @@ public class UserProfileExtrasService {
     private final GroupMemberRepository members;
     private final ProfileAppearanceRepository appearances;
     private final FavoriteStoryRepository favorites;
+    private final ReviewService reviewService;
+    private final FavoriteBookRepository favoriteBooks;
+    private final BookMapper bookMapper;
+    private final BookRepository books;
 
     public ProfileActivityDto activity(UUID userId) {
         var user = activeUser(userId);
@@ -70,6 +79,11 @@ public class UserProfileExtrasService {
         });
     }
 
+    public List<ReviewResponseDto> reviews(UUID userId) {
+        activeUser(userId);
+        return reviewService.getReviewsByReviewerId(userId);
+    }
+
     public boolean isFavorite(UUID storyId) {
         var user = currentUser();
         return favorites.findByUserIdExternalAndStoryIdExternal(user.getIdExternal(), storyId).isPresent();
@@ -106,5 +120,50 @@ public class UserProfileExtrasService {
             throw new AccessDeniedException("An active authenticated user is required");
         }
         return user;
+    }
+
+    public Page<BookResponseDto> favoriteBooks(UUID userId, Pageable pageable) {
+        activeUser(userId);
+
+        return favoriteBooks.findVisibleFavorites(userId, pageable)
+                .map(favorite -> bookMapper.toResponseDto(favorite.getBook()));
+    }
+
+    public boolean isFavoriteBook(UUID bookId) {
+        var user = currentUser();
+
+        return favoriteBooks
+                .findByUserIdExternalAndBookIdExternal(user.getIdExternal(), bookId)
+                .isPresent();
+    }
+
+    @Transactional
+    public void addFavoriteBook(UUID bookId) {
+        var user = currentUser();
+
+        var book = books.findByIdExternal(bookId)
+                .filter(value -> Boolean.FALSE.equals(value.getDeleted()))
+                .orElseThrow(() -> new ResourceNotFoundException("Book not available"));
+
+        if (favoriteBooks
+                .findByUserIdExternalAndBookIdExternal(user.getIdExternal(), bookId)
+                .isPresent()) {
+            return;
+        }
+
+        var favorite = new FavoriteBookEntity();
+        favorite.setUser(user);
+        favorite.setBook(book);
+
+        favoriteBooks.save(favorite);
+    }
+
+    @Transactional
+    public void removeFavoriteBook(UUID bookId) {
+        var user = currentUser();
+
+        favoriteBooks
+                .findByUserIdExternalAndBookIdExternal(user.getIdExternal(), bookId)
+                .ifPresent(favoriteBooks::delete);
     }
 }

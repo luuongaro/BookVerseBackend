@@ -83,6 +83,18 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ReviewResponseDto> getReviewsByReviewerId(UUID reviewerId) {
+        List<ReviewEntity> reviews =
+                reviewRepository.findByReviewerIdExternalAndDeletedFalseAndTakedownStatusOrderByCreatedAtDesc(
+                        reviewerId,
+                        ReviewTakedownStatus.ACTIVE
+                );
+
+        return reviewMapper.toResponseListDto(reviews);
+    }
+
+    @Override
     @Transactional
     public ReviewResponseDto createReview(ReviewCreateRequestDto dto) {
         validateExactlyOneTarget(dto.bookId(), dto.storyId());

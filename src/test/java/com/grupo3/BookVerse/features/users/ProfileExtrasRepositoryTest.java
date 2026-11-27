@@ -2,10 +2,13 @@ package com.grupo3.BookVerse.features.users;
 
 import com.grupo3.BookVerse.common.exception.ResourceNotFoundException;
 import com.grupo3.BookVerse.features.books.domain.BookEntity;
+import com.grupo3.BookVerse.features.books.mapper.BookMapper;
+import com.grupo3.BookVerse.features.books.repository.BookRepository;
 import com.grupo3.BookVerse.features.chapters.domain.ChapterEntity;
 import com.grupo3.BookVerse.features.groups.groupMember.domain.*;
 import com.grupo3.BookVerse.features.groups.groupMember.repository.GroupMemberRepository;
 import com.grupo3.BookVerse.features.groups.readingGroups.domain.ReadingGroupEntity;
+import com.grupo3.BookVerse.features.reviews.services.ReviewService;
 import com.grupo3.BookVerse.features.status.domain.*;
 import com.grupo3.BookVerse.features.status.repository.ReadingStatusRepository;
 import com.grupo3.BookVerse.features.stories.domain.StoryEntity;
@@ -33,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.sql.DataSource;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 @SpringJUnitConfig(ProfileExtrasRepositoryTest.Config.class)
 @Transactional
@@ -44,6 +48,8 @@ class ProfileExtrasRepositoryTest {
     @Autowired GroupMemberRepository members;
     @Autowired ProfileAppearanceRepository appearances;
     @Autowired FavoriteStoryRepository favorites;
+    @Autowired FavoriteBookRepository favoriteBooks;
+    @Autowired BookRepository books;
     UserProfileExtrasService service;
     UserEntity reader;
     UserEntity other;
@@ -60,8 +66,18 @@ class ProfileExtrasRepositoryTest {
             var story = StoryEntity.builder().title("Story " + i).description("Description").author(reader).build();
             em.persist(story); works.add(story);
         }
-        service = new UserProfileExtrasService(users, stories, statuses, members, appearances, favorites);
-        authenticate(reader);
+        service = new UserProfileExtrasService(
+                users,
+                stories,
+                statuses,
+                members,
+                appearances,
+                favorites,
+                mock(ReviewService.class),
+                favoriteBooks,
+                mock(BookMapper.class),
+                books
+        );
     }
     @AfterEach void cleanup() { SecurityContextHolder.clearContext(); }
     void authenticate(UserEntity user) {
@@ -162,8 +178,52 @@ class ProfileExtrasRepositoryTest {
         assertThrows(AccessDeniedException.class, () -> service.updateAppearance(new ProfileAppearanceRequestDto(1, null)));
     }
 
+    @Test
+    void bookFavoritesAreIdempotentAndRemovingOnlyAffectsTheAuthenticatedOwner() {
+        var book = BookEntity.builder()
+                .googleBookId("favorite-book-test")
+                .title("Favorite Book")
+                .build();
+
+        em.persist(book);
+        em.flush();
+
+        var bookId = book.getIdExternal();
+
+        service.addFavoriteBook(bookId);
+        service.addFavoriteBook(bookId);
+
+        assertEquals(1, favoriteBooks.count());
+        assertTrue(service.isFavoriteBook(bookId));
+
+        authenticate(other);
+
+        assertFalse(service.isFavoriteBook(bookId));
+        service.removeFavoriteBook(bookId);
+
+        assertEquals(1, favoriteBooks.count());
+
+        service.addFavoriteBook(bookId);
+
+        assertEquals(2, favoriteBooks.count());
+
+        service.removeFavoriteBook(bookId);
+
+        assertEquals(1, favoriteBooks.count());
+
+        authenticate(reader);
+
+        assertTrue(service.isFavoriteBook(bookId));
+    }
+
     @Configuration
-    @EnableJpaRepositories(basePackageClasses = {UserRepository.class, StoryRepository.class, ReadingStatusRepository.class, GroupMemberRepository.class})
+    @EnableJpaRepositories(basePackageClasses = {
+            UserRepository.class,
+            StoryRepository.class,
+            ReadingStatusRepository.class,
+            GroupMemberRepository.class,
+            BookRepository.class
+    })
     static class Config {
         @Bean DataSource dataSource() { return new DriverManagerDataSource("jdbc:h2:mem:profile-extras;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", ""); }
         @Bean LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource source) {
