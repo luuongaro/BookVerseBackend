@@ -7,6 +7,7 @@ import com.grupo3.BookVerse.features.subscriptions.service.MercadoPagoSubscripti
 import com.mercadopago.client.preapproval.PreApprovalAutoRecurringCreateRequest;
 import com.mercadopago.client.preapproval.PreapprovalClient;
 import com.mercadopago.client.preapproval.PreapprovalCreateRequest;
+import com.mercadopago.client.preapproval.PreapprovalUpdateRequest;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
 import com.mercadopago.resources.preapproval.Preapproval;
@@ -103,6 +104,42 @@ public class MercadoPagoSubscriptionServiceImpl
         } catch (MPApiException | MPException ex) {
             throw new PaymentProviderException(
                     "Error retrieving Mercado Pago premium subscription",
+                    ex
+            );
+        }
+    }
+
+    @Override
+    public void cancelSubscription(String providerSubscriptionId) {
+
+        if (providerSubscriptionId == null
+                || providerSubscriptionId.isBlank()) {
+            throw new PaymentProviderException(
+                    "Mercado Pago subscription id is required",
+                    null
+            );
+        }
+
+        try {
+            PreapprovalUpdateRequest request =
+                    PreapprovalUpdateRequest.builder()
+                            .status("cancelled")
+                            .build();
+
+            PreapprovalClient client = new PreapprovalClient();
+
+            client.update(providerSubscriptionId, request);
+
+        } catch (MPApiException ex) {
+            throw new PaymentProviderException(
+                    "Error cancelling Mercado Pago premium subscription: "
+                            + ex.getApiResponse().getContent(),
+                    ex
+            );
+
+        } catch (MPException ex) {
+            throw new PaymentProviderException(
+                    "Error communicating with Mercado Pago while cancelling premium subscription",
                     ex
             );
         }
